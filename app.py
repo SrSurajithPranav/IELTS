@@ -24,6 +24,12 @@ from routes.feedback import feedback_bp
 from routes.plans import plans_bp
 from routes.users import users_bp
 from routes.batches import batches_bp
+from routes.students import students_bp
+from routes.sessions import sessions_bp
+from routes.quizzes import quizzes_bp, resources_bp
+from models.session import LiveSession, SessionRecording
+from models.quiz import Quiz, QuizQuestion, QuizAttempt
+from models.resource import Resource
 
 def create_app(config_name=None):
     """Application factory."""
@@ -85,6 +91,10 @@ def create_app(config_name=None):
     app.register_blueprint(plans_bp, url_prefix='/api/plans')
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(batches_bp, url_prefix='/api/batches')
+    app.register_blueprint(students_bp)
+    app.register_blueprint(sessions_bp)
+    app.register_blueprint(quizzes_bp)
+    app.register_blueprint(resources_bp)
     
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])

@@ -1,3 +1,4 @@
+import { AdminAddStudent, LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 
 // ─────────────────────────────────────────────
@@ -421,13 +422,19 @@ const Sidebar = ({ page, setPage, user, onLogout }) => {
     { id: "games",        icon: "🧩", label: "Games" },
     { id: "leaderboard",  icon: "🏆", label: "Leaderboard" },
     { id: "liveclass",    icon: "🎥", label: "Live Class" },
+    { id: "quizzes",      icon: "🧩", label: "Quizzes" },
+    { id: "resources",    icon: "📚", label: "Resources" },
   ];
   const adminNav = [
     { id: "admin-home",     icon: "⊞",  label: "Overview" },
     { id: "admin-students", icon: "👥", label: "Students" },
     { id: "admin-plans",    icon: "📋", label: "Plans" },
     { id: "admin-tasks",    icon: "✓",  label: "Tasks" },
-    { id: "admin-review",   icon: "🔍", label: "Review" },
+    { id: "admin-review",    icon: "🔍", label: "Review" },
+    { id: "admin-add-student", icon: "➕", label: "Add Student" },
+    { id: "admin-sessions",    icon: "🎙", label: "Sessions" },
+    { id: "admin-resources",   icon: "📚", label: "Resources" },
+    { id: "admin-quizzes",     icon: "🧩", label: "Quiz Builder" },
   ];
   const nav = user?.role === "admin" ? adminNav : studentNav;
 
@@ -2010,14 +2017,20 @@ export default function App() {
     mocktest:  <MockTestPage />,
     games:     <GamesArenaPage />,
     leaderboard: <LeaderboardPage />,
-    liveclass: <LiveClassPage user={user} />,
+    liveclass: <LiveSessionsPage user={user} />,
+    quizzes:   <QuizzesPage />,
+    resources: <ResourcesPage />,
   };
   const adminPages = {
     "admin-home":     <AdminHome />,
     "admin-students": <AdminStudents />,
     "admin-plans":    <AdminPlans />,
     "admin-tasks":    <AdminTasks />,
-    "admin-review":   <AdminReview />,
+    "admin-review":        <AdminReview />,
+    "admin-add-student":   <AdminAddStudent />,
+    "admin-sessions":      <AdminSessionsMgr />,
+    "admin-resources":     <AdminResourcesMgr />,
+    "admin-quizzes":       <AdminQuizBuilder />,
   };
   const pages = user.role === "admin" ? adminPages : studentPages;
   const content = pages[page] || <div style={{ color: "var(--muted)" }}>Page not found</div>;
