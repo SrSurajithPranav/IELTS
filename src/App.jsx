@@ -1,0 +1,2038 @@
+import React, { useState, useEffect, useContext, createContext, useRef } from "react";
+
+// ─────────────────────────────────────────────
+// GLOBAL STYLES
+// ─────────────────────────────────────────────
+const GlobalStyles = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f4efe6;
+      --bg2:        #fdf8ef;
+      --bg3:        #fffaf2;
+      --border:     #dbcbb8;
+      --accent:     #146c72;
+      --accent2:    #0f4c5c;
+      --gold:       #d69429;
+      --success:    #2f855a;
+      --danger:     #c53030;
+      --warn:       #b7791f;
+      --text:       #1f2a33;
+      --muted:      #667380;
+      --card:       #fffcf7;
+      --radius:     16px;
+      --sidebar-w:  240px;
+    }
+
+    html, body, #root { height: 100%; font-family: 'Manrope', sans-serif; background: var(--bg); color: var(--text); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .playfair { font-family: 'Fraunces', serif; }
+
+    button { cursor: pointer; border: none; font-family: inherit; }
+    input, textarea, select { font-family: inherit; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: .6; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .fade-up { animation: fadeUp .45s ease both; }
+    .fade-up-2 { animation: fadeUp .45s .1s ease both; }
+    .fade-up-3 { animation: fadeUp .45s .2s ease both; }
+    .fade-up-4 { animation: fadeUp .45s .3s ease both; }
+  `}</style>
+);
+// ─────────────────────────────────────────────
+// AUTH CONTEXT
+// ─────────────────────────────────────────────
+const AuthCtx = createContext(null);
+
+// ─────────────────────────────────────────────
+// API CONFIGURATION
+// ─────────────────────────────────────────────
+const ENV_API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
+  (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ||
+  "";
+
+// If running under Vite dev server, prefer a relative `/api` path so the dev-server
+// proxy (vite.config.js) forwards requests to the backend and avoids CORS.
+const IS_VITE_DEV = typeof import.meta !== "undefined" && !!import.meta.env && !!import.meta.env.DEV;
+
+const IS_GITHUB_FORWARDED_HOST =
+  typeof window !== "undefined" && /\.app\.github\.dev$/.test(window.location.hostname);
+
+const INFERRED_GITHUB_API_BASE_URL =
+  IS_GITHUB_FORWARDED_HOST
+    ? `${window.location.protocol}//${window.location.hostname.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev")}/api`
+    : "";
+
+const isLocalApiUrl = (value) =>
+  typeof value === "string" &&
+  (/^https?:\/\/localhost(?::\d+)?\/api\/?$/i.test(value) || /^https?:\/\/127\.0\.0\.1(?::\d+)?\/api\/?$/i.test(value));
+
+let API_BASE_URL = "http://localhost:5000/api";
+if (IS_VITE_DEV) {
+  API_BASE_URL = ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : "/api";
+} else if (IS_GITHUB_FORWARDED_HOST) {
+  API_BASE_URL = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : API_BASE_URL);
+} else {
+  API_BASE_URL = ENV_API_BASE_URL || API_BASE_URL;
+}
+const API_TIMEOUT = 10000;
+
+const parseJsonSafely = async (response) => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+// Fetch with timeout
+const apiCall = async (endpoint, options = {}) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT);
+  try {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const token = localStorage.getItem("jwt_token");
+    const headers = {
+      "Content-Type": "application/json",
+      ...options.headers,
+      ...(token && { Authorization: `Bearer ${token}` })
+    };
+    
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal
+    });
+    
+    const data = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      const message = data && typeof data === "object" && data.error
+        ? data.error
+        : `API error: ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+// API Methods
+const authAPI = {
+  login: (email, password) => apiCall("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  }),
+  register: (name, email, password) => apiCall("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password })
+  }),
+  getProfile: () => apiCall("/auth/me")
+};
+
+const tasksAPI = {
+  getToday: () => apiCall("/tasks/today"),
+  getDay: (day) => apiCall(`/tasks/day/${day}`),
+  create: (data) => apiCall("/tasks", {
+    method: "POST",
+    body: JSON.stringify(data)
+  })
+};
+
+const submissionsAPI = {
+  submit: (taskId, content, audioBlob) => {
+    const formData = new FormData();
+    formData.append("task_id", taskId);
+    formData.append("content", content);
+    if (audioBlob) formData.append("audio", audioBlob, "recording.webm");
+    
+    const token = localStorage.getItem("jwt_token");
+    return fetch(`${API_BASE_URL}/submissions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    }).then(r => r.json());
+  },
+  getStudentSubs: (studentId) => apiCall(`/submissions/student/${studentId}`),
+  getPending: () => apiCall("/submissions/pending")
+};
+
+const feedbackAPI = {
+  create: async (submissionId, text, audioFile) => {
+    const formData = new FormData();
+    formData.append("feedback_text", text || "");
+    if (audioFile) formData.append("audio", audioFile, "feedback.webm");
+
+    const token = localStorage.getItem("jwt_token");
+    const response = await fetch(`${API_BASE_URL}/feedback/${submissionId}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const data = await parseJsonSafely(response);
+    if (!response.ok) {
+      throw new Error(data && typeof data === "object" && data.error ? data.error : `API error: ${response.status}`);
+    }
+    return data;
+  }
+};
+
+const plansAPI = {
+  getAll: () => apiCall("/plans"),
+  getMy: () => apiCall("/plans/my"),
+  select: (planId) => apiCall("/plans/select", {
+    method: "POST",
+    body: JSON.stringify({ plan_id: planId })
+  }),
+  create: (data) => apiCall("/plans", {
+    method: "POST",
+    body: JSON.stringify(data)
+  })
+};
+
+const usersAPI = {
+  getStudents: () => apiCall("/users"),
+  update: (userId, data) => apiCall(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data)
+  })
+};
+
+const batchesAPI = {
+  getAll: () => apiCall("/batches"),
+  create: (data) => apiCall("/batches", {
+    method: "POST",
+    body: JSON.stringify(data)
+  })
+};
+
+// ─────────────────────────────────────────────
+// GLOBAL STYLES
+// ─────────────────────────────────────────────
+const useAuth = () => useContext(AuthCtx);
+
+const MOCK_USERS = [
+  { id: 1, name: "Arjun Kumar",    email: "student1@gmail.com", password: "123456", role: "student", streak: 7,  zoom: "https://zoom.us/j/123456789", score: 68 },
+  { id: 2, name: "Priya Sharma",   email: "student2@gmail.com", password: "123456", role: "student", streak: 12, zoom: "https://zoom.us/j/123456789", score: 72 },
+  { id: 4, name: "Ravi Menon",     email: "student3@gmail.com", password: "123456", role: "student", streak: 2,  zoom: "https://zoom.us/j/123456789", score: 61 },
+  { id: 5, name: "Anjali Singh",   email: "student4@gmail.com", password: "123456", role: "student", streak: 5,  zoom: "https://zoom.us/j/123456789", score: 65 },
+  { id: 6, name: "Rohan Das",      email: "student5@gmail.com", password: "123456", role: "student", streak: 3,  zoom: "https://zoom.us/j/123456789", score: 59 },
+  { id: 3, name: "Surajith Pranav", email: "srsurajith@gmail.com", password: "admin123", role: "admin", streak: 0, zoom: "" },
+];
+
+const PRACTICE_LOGINS = [
+  { label: "Student 1", email: "student1@gmail.com", password: "123456" },
+  { label: "Student 2", email: "student2@gmail.com", password: "123456" },
+  { label: "Student 3", email: "student3@gmail.com", password: "123456" },
+  { label: "Student 4", email: "student4@gmail.com", password: "123456" },
+  { label: "Student 5", email: "student5@gmail.com", password: "123456" },
+  { label: "Admin", email: "srsurajith@gmail.com", password: "admin123" },
+];
+
+// ─────────────────────────────────────────────
+// MOCK DATA
+// ─────────────────────────────────────────────
+const MOCK_TASKS = [
+  { id: 1, day: 1, type: "listening", title: "Listening Practice – Section 1", desc: "Listen to a conversation between two people about booking accommodation.", duration: "30 min", status: "reviewed" },
+  { id: 2, day: 1, type: "speaking",  title: "Speaking Task – Part 1 Introduction", desc: "Record yourself answering: Tell me about your hometown. What do you like about it?", duration: "15 min", status: "submitted" },
+  { id: 3, day: 1, type: "writing",   title: "Writing Task 1 – Bar Chart", desc: "The chart shows electricity production in France between 1980–2012. Summarise in at least 150 words.", duration: "20 min", status: "pending" },
+  { id: 4, day: 1, type: "reading",   title: "Reading Passage – Environment", desc: "Read the passage on climate change impacts and answer True/False/Not Given questions.", duration: "40 min", status: "pending" },
+  { id: 5, day: 1, type: "grammar",   title: "Grammar Drill – Passive Voice", desc: "Complete the exercises on passive voice transformations.", duration: "20 min", status: "pending" },
+];
+
+const MOCK_SUBMISSIONS = [
+  { id: 1, taskId: 2, taskTitle: "Speaking Task – Part 1",       type: "speaking", date: "2025-05-01", status: "reviewed",  feedback: "Great fluency! Work on pronunciation of 'th' sounds. Your pacing was excellent." },
+  { id: 2, taskId: 3, taskTitle: "Writing Task 1 – Pie Chart",   type: "writing",  date: "2025-04-30", status: "submitted", feedback: "" },
+  { id: 3, taskId: 1, taskTitle: "Listening – Section 2",        type: "listening",date: "2025-04-29", status: "reviewed",  feedback: "8/10 correct. Focus on number dictation." },
+];
+
+const MOCK_STUDENTS = [
+  { id: 1, name: "Arjun Kumar",  email: "student@ielts.com", plan: "60-Day Intensive", progress: 62, streak: 7,  score: 68, weakAreas: ["Writing Task 1", "Listening Section 3"] },
+  { id: 2, name: "Priya Sharma", email: "priya@ielts.com",   plan: "90-Day Complete",  progress: 38, streak: 12, score: 72, weakAreas: ["Speaking Part 3"] },
+  { id: 3, name: "Ravi Menon",   email: "ravi@ielts.com",    plan: "60-Day Intensive", progress: 15, streak: 2,  score: 61, weakAreas: ["Grammar", "Vocabulary"] },
+];
+
+const MOCK_PLANS = [
+  { id: 1, name: "60-Day Intensive", days: 60, students: 2, tasks_per_day: 5 },
+  { id: 2, name: "90-Day Complete",  days: 90, students: 1, tasks_per_day: 4 },
+];
+
+// ─────────────────────────────────────────────
+// SMART TASK GENERATOR
+// ─────────────────────────────────────────────
+const generateTasksForDay = (student, day) => {
+  const level = student.score < 65 ? "beginner" : "intermediate";
+
+  return [
+    {
+      id: `${day}-1`,
+      day,
+      type: "speaking",
+      title: `Speaking Practice Day ${day}`,
+      desc: "Answer the question using natural fluency.",
+      duration: "15 min",
+      status: "pending",
+      difficulty: level
+    },
+    {
+      id: `${day}-2`,
+      day,
+      type: "writing",
+      title: `Writing Task ${day}`,
+      desc: "Write at least 150 words.",
+      duration: "20 min",
+      status: "pending",
+      difficulty: level
+    },
+    {
+      id: `${day}-3`,
+      day,
+      type: "listening",
+      title: `Listening Drill`,
+      desc: "Complete listening section.",
+      duration: "30 min",
+      status: "pending",
+      difficulty: level
+    }
+  ];
+};
+
+// ─────────────────────────────────────────────
+// TINY COMPONENTS
+// ─────────────────────────────────────────────
+const Badge = ({ label, color = "accent" }) => {
+  const colors = {
+    accent:  { bg: "rgba(79,142,247,.15)",  text: "#4f8ef7" },
+    success: { bg: "rgba(34,197,94,.15)",   text: "#22c55e" },
+    warn:    { bg: "rgba(245,158,11,.15)",  text: "#f59e0b" },
+    danger:  { bg: "rgba(239,68,68,.15)",   text: "#ef4444" },
+    purple:  { bg: "rgba(124,58,237,.15)",  text: "#a78bfa" },
+    gold:    { bg: "rgba(245,200,66,.15)",  text: "#f5c842" },
+  };
+  const c = colors[color] || colors.accent;
+  return (
+    <span style={{
+      background: c.bg, color: c.text, fontSize: 11, fontWeight: 600,
+      padding: "3px 10px", borderRadius: 99, letterSpacing: ".4px", textTransform: "uppercase"
+    }}>{label}</span>
+  );
+};
+
+const TaskTypeBadge = ({ type }) => {
+  const map = { speaking: "accent", writing: "purple", listening: "success", reading: "warn", grammar: "gold" };
+  return <Badge label={type} color={map[type] || "accent"} />;
+};
+
+const StatusBadge = ({ status }) => {
+  const map = { pending: "warn", submitted: "accent", reviewed: "success" };
+  return <Badge label={status} color={map[status] || "accent"} />;
+};
+
+const ProgressRing = ({ pct, size = 80, stroke = 6, color = "#4f8ef7" }) => {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <svg width={size} height={size}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color}
+        strokeWidth={stroke} strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round" style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dashoffset .8s ease" }} />
+      <text x="50%" y="50%" textAnchor="middle" dy=".35em" fill={color} fontSize={size/5} fontWeight={700}>{pct}%</text>
+    </svg>
+  );
+};
+
+const ProgressBar = ({ pct, color = "var(--accent)", height = 6 }) => (
+  <div style={{ background: "var(--border)", borderRadius: 99, height, overflow: "hidden" }}>
+    <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 99, transition: "width .8s ease" }} />
+  </div>
+);
+
+const Spinner = () => (
+  <div style={{ width: 22, height: 22, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+);
+
+const Card = ({ children, style = {}, className = "" }) => (
+  <div className={className} style={{
+    background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+    padding: 24, ...style
+  }}>{children}</div>
+);
+
+const Btn = ({ children, onClick, variant = "primary", size = "md", disabled = false, style = {} }) => {
+  const variants = {
+    primary:  { background: "var(--accent)",  color: "#fff" },
+    purple:   { background: "var(--accent2)", color: "#fff" },
+    outline:  { background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)" },
+    ghost:    { background: "transparent", color: "var(--muted)" },
+    danger:   { background: "var(--danger)", color: "#fff" },
+    success:  { background: "var(--success)", color: "#fff" },
+  };
+  const sizes = { sm: { padding: "6px 14px", fontSize: 13 }, md: { padding: "10px 20px", fontSize: 14 }, lg: { padding: "13px 28px", fontSize: 15 } };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...variants[variant], ...sizes[size], borderRadius: 9, fontWeight: 600,
+      opacity: disabled ? .5 : 1, transition: "all .18s", ...style
+    }}
+      onMouseEnter={e => !disabled && (e.target.style.filter = "brightness(1.12)")}
+      onMouseLeave={e => (e.target.style.filter = "")}
+    >{children}</button>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SIDEBAR
+// ─────────────────────────────────────────────
+const Sidebar = ({ page, setPage, user, onLogout }) => {
+  const studentNav = [
+    { id: "dashboard",    icon: "⊞",  label: "Dashboard" },
+    { id: "plans",        icon: "💼", label: "Plans" },
+    { id: "tasks",        icon: "✓",  label: "Today's Tasks" },
+    { id: "speaking",     icon: "🎧", label: "Speaking" },
+    { id: "writing",      icon: "✍️", label: "Writing" },
+    { id: "progress",     icon: "📊", label: "Progress" },
+    { id: "mocktest",     icon: "⏱",  label: "Mock Test" },
+    { id: "games",        icon: "🧩", label: "Games" },
+    { id: "leaderboard",  icon: "🏆", label: "Leaderboard" },
+    { id: "liveclass",    icon: "🎥", label: "Live Class" },
+  ];
+  const adminNav = [
+    { id: "admin-home",     icon: "⊞",  label: "Overview" },
+    { id: "admin-students", icon: "👥", label: "Students" },
+    { id: "admin-plans",    icon: "📋", label: "Plans" },
+    { id: "admin-tasks",    icon: "✓",  label: "Tasks" },
+    { id: "admin-review",   icon: "🔍", label: "Review" },
+  ];
+  const nav = user?.role === "admin" ? adminNav : studentNav;
+
+  return (
+    <aside style={{
+      width: "var(--sidebar-w)", background: "var(--bg2)", borderRight: "1px solid var(--border)",
+      height: "100vh", position: "fixed", left: 0, top: 0, display: "flex", flexDirection: "column",
+      padding: "0 0 16px", zIndex: 100
+    }}>
+      {/* Logo */}
+      <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div className="playfair" style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)", letterSpacing: ".5px" }}>
+          IELTS<span style={{ color: "var(--gold)" }}>Pro</span>
+        </div>
+        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Smart Training Platform</div>
+      </div>
+
+      {/* User chip */}
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,var(--accent),var(--accent2))",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700
+          }}>{user?.name?.[0]}</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{user?.name?.split(" ")[0]}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{user?.role === "admin" ? "Teacher" : "Student"}</div>
+          </div>
+        </div>
+        {user?.role === "student" && user.streak > 0 && (
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, background: "rgba(245,200,66,.1)", borderRadius: 8, padding: "6px 10px" }}>
+            <span>🔥</span>
+            <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>{user.streak} day streak</span>
+          </div>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: "12px 10px", overflow: "auto" }}>
+        {nav.map(item => (
+          <button key={item.id} onClick={() => setPage(item.id)} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+            borderRadius: 10, background: page === item.id ? "rgba(79,142,247,.12)" : "transparent",
+            color: page === item.id ? "var(--accent)" : "var(--muted)",
+            fontSize: 13, fontWeight: page === item.id ? 600 : 400,
+            border: page === item.id ? "1px solid rgba(79,142,247,.2)" : "1px solid transparent",
+            marginBottom: 2, transition: "all .18s", textAlign: "left"
+          }}
+            onMouseEnter={e => { if (page !== item.id) { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "rgba(255,255,255,.04)"; } }}
+            onMouseLeave={e => { if (page !== item.id) { e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.background = "transparent"; } }}
+          >
+            <span style={{ fontSize: 16 }}>{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Logout */}
+      <div style={{ padding: "0 10px" }}>
+        <button onClick={onLogout} style={{
+          width: "100%", padding: "10px 12px", borderRadius: 10, background: "transparent",
+          color: "var(--muted)", fontSize: 13, textAlign: "left", display: "flex", alignItems: "center", gap: 10,
+          border: "1px solid transparent", transition: "all .18s"
+        }}
+          onMouseEnter={e => { e.currentTarget.style.color = "var(--danger)"; e.currentTarget.style.background = "rgba(239,68,68,.06)"; }}
+          onMouseLeave={e => { e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.background = "transparent"; }}
+        >⎋ Logout</button>
+      </div>
+    </aside>
+  );
+};
+
+// ─────────────────────────────────────────────
+// LOGIN PAGE
+// ─────────────────────────────────────────────
+const LoginPage = ({ onLogin }) => {
+  const [email, setEmail] = useState("");
+  const [pass, setPass]   = useState("");
+  const [err, setErr]     = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const inp = {
+    width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10,
+    padding: "13px 16px", color: "var(--text)", fontSize: 14, outline: "none", transition: "border .2s"
+  };
+
+  const handle = async () => {
+    setErr(""); setLoading(true);
+    try {
+      const res = await authAPI.login(email, pass);
+      if (!res || !res.token) throw new Error('Invalid response from server');
+      localStorage.setItem("jwt_token", res.token);
+      const usr = res.user;
+      onLogin({ id: usr.id, name: usr.name, email: usr.email, role: usr.role, streak: usr.streak || 0, score: usr.score || 0 });
+    } catch (e) {
+      setErr(e.message || "Login failed. If you are a student, wait for admin approval email confirmation.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      background: "radial-gradient(ellipse at 30% 20%, rgba(79,142,247,.08) 0%, transparent 60%), var(--bg)"
+    }}>
+      <GlobalStyles />
+      <div className="fade-up" style={{ width: "100%", maxWidth: 420, padding: "0 20px" }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div className="playfair" style={{ fontSize: 36, fontWeight: 700, color: "var(--accent)" }}>
+            IELTS<span style={{ color: "var(--gold)" }}>Pro</span>
+          </div>
+          <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 6 }}>Smart Training Platform</p>
+        </div>
+
+        <Card>
+          <div className="playfair" style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Welcome back</div>
+          <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>Sign in to continue your IELTS journey</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6, fontWeight: 500 }}>Email</label>
+              <input style={inp} value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com"
+                onFocus={e => e.target.style.borderColor = "var(--accent)"}
+                onBlur={e => e.target.style.borderColor = "var(--border)"} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6, fontWeight: 500 }}>Password</label>
+              <input style={inp} type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••"
+                onFocus={e => e.target.style.borderColor = "var(--accent)"}
+                onBlur={e => e.target.style.borderColor = "var(--border)"}
+                onKeyDown={e => e.key === "Enter" && !loading && handle()} />
+            </div>
+            {err && <p style={{ color: "var(--danger)", fontSize: 12 }}>{err}</p>}
+            <Btn onClick={handle} disabled={loading} size="lg" style={{ marginTop: 6, width: "100%" }}>
+              {loading ? "Signing in…" : "Sign In"}
+            </Btn>
+          </div>
+
+          <div style={{ marginTop: 20, padding: "14px 16px", background: "var(--bg3)", borderRadius: 10, fontSize: 12, color: "var(--muted)", border: "1px dashed var(--border)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>Practice Accounts</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {PRACTICE_LOGINS.map(acc => (
+                <div key={acc.email} style={{ background: "rgba(20,108,114,.08)", borderRadius: 8, padding: "6px 8px" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 11 }}>{acc.label}</div>
+                  <div style={{ fontSize: 11 }}>{acc.email}</div>
+                  <div style={{ fontSize: 11 }}>Pass: {acc.password}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)" }}>Student sign-in requires approval by srsurajith@gmail.com.</div>
+            <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>API: {API_BASE_URL}</div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// TASK CARD
+// ─────────────────────────────────────────────
+const TaskCard = ({ task, onSubmit }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recTime, setRecTime] = useState(0);
+  const timerRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const [audioBlob, setAudioBlob] = useState(null);
+
+  const iconMap = { speaking: "🎧", writing: "✍️", listening: "📻", reading: "📖", grammar: "📝" };
+  const colorMap = {
+    speaking: "var(--accent)", writing: "#a78bfa", listening: "var(--success)",
+    reading: "var(--warn)", grammar: "var(--gold)"
+  };
+  const color = colorMap[task.type] || "var(--accent)";
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      const chunks = [];
+
+      recorder.ondataavailable = e => chunks.push(e.data);
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        setAudioBlob(blob);
+      };
+
+      recorder.start();
+      setRecording(true);
+      setRecTime(0);
+      timerRef.current = setInterval(() => setRecTime(t => t + 1), 1000);
+    } catch (err) {
+      alert("Microphone access denied. Please check permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      clearInterval(timerRef.current);
+      setRecording(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      await submissionsAPI.submit(task.id, text, audioBlob);
+      setSubmitted(true);
+      setExpanded(false);
+      onSubmit && onSubmit(task.id);
+    } catch (err) {
+      alert(err.message || "Submission failed");
+    }
+  };
+
+  const fmtTime = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+  return (
+    <Card style={{ marginBottom: 14, borderLeft: `3px solid ${color}`, padding: 0, overflow: "hidden" }}>
+      <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
+        onClick={() => !submitted && setExpanded(e => !e)}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10, background: `${color}18`,
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0
+        }}>{iconMap[task.type]}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{task.title}</span>
+            <TaskTypeBadge type={task.type} />
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>⏱ {task.duration}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <StatusBadge status={submitted ? (task.status === "reviewed" ? "reviewed" : "submitted") : "pending"} />
+          {!submitted && <span style={{ color: "var(--muted)", fontSize: 12 }}>{expanded ? "▲" : "▼"}</span>}
+          {submitted && task.status === "reviewed" && <span style={{ fontSize: 16 }}>✅</span>}
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: "0 20px 20px", borderTop: "1px solid var(--border)" }}>
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: "16px 0" }}>{task.description || task.desc}</p>
+
+          {task.type === "writing" || task.type === "grammar" || task.type === "reading" ? (
+            <div>
+              <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Type your response here…" rows={5}
+                style={{
+                  width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10,
+                  padding: 14, color: "var(--text)", fontSize: 13, resize: "vertical", outline: "none"
+                }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>{text.split(/\s+/).filter(Boolean).length} words</span>
+                <Btn onClick={handleSubmit} disabled={text.trim().length < 5}>Submit</Btn>
+              </div>
+            </div>
+          ) : task.type === "speaking" ? (
+            <div>
+              <div style={{
+                padding: 20, background: "var(--bg3)", borderRadius: 10, display: "flex",
+                flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 14
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Recording</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Btn onClick={recording ? stopRecording : startRecording} variant={recording ? "danger" : "outline"}>
+                    {recording ? `⏹ Stop (${fmtTime(recTime)})` : "⏺ Start Recording"}
+                  </Btn>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{audioBlob ? "Recording saved" : "No recording yet"}</div>
+                  <input type="file" accept="audio/*" style={{ fontSize: 12, color: "var(--muted)" }} onChange={e => { if (e.target.files && e.target.files[0]) setAudioBlob(e.target.files[0]); }} />
+                </div>
+              </div>
+              <Btn onClick={handleSubmit} disabled={!audioBlob && text.trim().length === 0}>Submit Recording</Btn>
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding: 16, background: "var(--bg3)", borderRadius: 10, marginBottom: 14, fontSize: 13, color: "var(--muted)" }}>
+                📻 Open the audio lesson from your teacher's materials. Mark complete when done.
+              </div>
+              <Btn onClick={handleSubmit} variant="success">Mark as Complete</Btn>
+            </div>
+          )}
+        </div>
+      )}
+
+      {task.status === "reviewed" && (
+        <div style={{ padding: "12px 20px", background: "rgba(34,197,94,.06)", borderTop: "1px solid rgba(34,197,94,.15)" }}>
+          <div style={{ fontSize: 12, color: "var(--success)", fontWeight: 600, marginBottom: 4 }}>📋 Teacher Feedback</div>
+          <div style={{ fontSize: 13, color: "var(--text)" }}>Great work! Focus on improving your vocabulary range and use more complex sentence structures.</div>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+// ─────────────────────────────────────────────
+// STUDENT DASHBOARD
+// ─────────────────────────────────────────────
+const StudentDashboard = ({ user }) => {
+  const [todayTasks, setTodayTasks] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+
+  useEffect(() => {
+    Promise.all([tasksAPI.getToday(), submissionsAPI.getStudentSubs(user.id)])
+      .then(([tasksRes, submissionsRes]) => {
+        setTodayTasks(tasksRes?.tasks || []);
+        setSubmissions(submissionsRes || []);
+      })
+      .catch(() => {
+        setTodayTasks([]);
+        setSubmissions([]);
+      });
+  }, [user.id]);
+
+  const todayTaskIds = new Set(todayTasks.map((task) => task.id));
+  const todaySubmissions = submissions.filter((submission) => todayTaskIds.has(submission.task_id));
+  const completed = todaySubmissions.filter((s) => s.status === "reviewed" || s.status === "submitted").length;
+  const total = todayTasks.length || 1;
+  const pct = Math.round((completed / total) * 100);
+
+  const stats = [
+    { label: "Day",      value: `Day ${todayTasks[0]?.day_number || 0}`, icon: "📅", color: "var(--accent)" },
+    { label: "Score",    value: user.score,      icon: "🎯", color: "var(--gold)" },
+    { label: "Streak",   value: `${user.streak}🔥`, icon: "", color: "var(--warn)" },
+    { label: "Reviewed", value: `${todaySubmissions.filter((s) => s.status === "reviewed").length} tasks`, icon: "✅", color: "var(--success)" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Welcome */}
+      <div className="fade-up">
+        <div className="playfair" style={{ fontSize: 26, fontWeight: 700 }}>
+          Good morning, {user.name.split(" ")[0]} 👋
+        </div>
+        <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 4 }}>Today's tasks and feedback are loaded from your active plan.</p>
+      </div>
+
+      {/* Stats row */}
+      <div className="fade-up-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 14 }}>
+        {stats.map((s, i) => (
+          <Card key={i} style={{ padding: "18px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{s.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Today's progress */}
+      <Card className="fade-up-3">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>Today's Progress</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>{completed} of {total} tasks done</div>
+          </div>
+          <ProgressRing pct={pct} />
+        </div>
+        <ProgressBar pct={pct} />
+        <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          {todayTasks.map((t) => (
+            <div key={t.id} style={{
+              width: 32, height: 6, borderRadius: 99,
+              background: "var(--success)"
+            }} />
+          ))}
+        </div>
+      </Card>
+
+      {/* Recent feedback */}
+      <Card className="fade-up-4">
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Recent Feedback 💬</div>
+        {submissions.filter((s) => s.feedback_text).slice(0, 2).map((s) => (
+          <div key={s.id} style={{ padding: "12px 14px", background: "var(--bg3)", borderRadius: 10, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Task #{s.task_id}</span>
+              <StatusBadge status={s.status} />
+            </div>
+            <p style={{ fontSize: 12, color: "var(--muted)" }}>{s.feedback_text}</p>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// TASKS PAGE (DYNAMIC)
+// ─────────────────────────────────────────────
+const TasksPage = ({ user }) => {
+  const [day, setDay] = useState(0);
+  const [tasks, setTasks] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+
+  useEffect(() => {
+    Promise.all([tasksAPI.getToday(), submissionsAPI.getStudentSubs(user.id)])
+      .then(([taskRes, submissionRes]) => {
+        setDay(taskRes?.day || 0);
+        setTasks(taskRes?.tasks || []);
+        setSubmissions(submissionRes || []);
+      })
+      .catch(() => {
+        setDay(0);
+        setTasks([]);
+        setSubmissions([]);
+      });
+  }, [user.id]);
+
+  const completedTaskIds = new Set(submissions.map((submission) => submission.task_id));
+  const completed = tasks.filter((task) => completedTaskIds.has(task.id)).length;
+  const pct = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
+
+  const handleSubmit = (id) => {
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, status: "submitted" } : t));
+  };
+
+  return (
+    <div>
+      <div className="fade-up" style={{ marginBottom: 20 }}>
+        <div className="playfair" style={{ fontSize: 22, fontWeight: 700 }}>Day {day || "Today"} Tasks</div>
+        <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>Complete all tasks to maintain your streak</p>
+      </div>
+
+      <Card className="fade-up-2" style={{ marginBottom: 20, padding: "16px 20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{completed}/{tasks.length} completed</span>
+          <span style={{ fontSize: 13, color: "var(--accent)", fontWeight: 700 }}>{pct}%</span>
+        </div>
+        <ProgressBar pct={pct} height={8} />
+      </Card>
+
+      <div className="fade-up-3">
+        {tasks.map(task => <TaskCard key={task.id} task={task} onSubmit={handleSubmit} />)}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SPEAKING PAGE
+// ─────────────────────────────────────────────
+const SpeakingPage = ({ user }) => {
+  const [subs, setSubs] = useState([]);
+
+  useEffect(() => {
+    submissionsAPI.getStudentSubs(user.id)
+      .then((res) => setSubs((res || []).filter((s) => s.task?.type === "speaking" || s.type === "speaking")))
+      .catch(() => setSubs([]));
+  }, [user.id]);
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Speaking Submissions</div>
+      {subs.map(s => (
+        <Card key={s.id} className="fade-up-2" style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{new Date(s.submitted_at).toLocaleString()}</div>
+            </div>
+            <StatusBadge status={s.status} />
+          </div>
+          {s.feedback_text && (
+            <div style={{ marginTop: 14, padding: 14, background: "rgba(34,197,94,.06)", borderRadius: 10, fontSize: 13, color: "var(--muted)" }}>
+              <span style={{ color: "var(--success)", fontWeight: 600, display: "block", marginBottom: 4 }}>Teacher Feedback</span>
+              {s.feedback_text}
+            </div>
+          )}
+          <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+            {s.file_url ? <a href={s.file_url} target="_blank" rel="noreferrer"><Btn size="sm" variant="outline">▶ Play Recording</Btn></a> : null}
+          </div>
+        </Card>
+      ))}
+
+      {/* New submission area */}
+      <Card className="fade-up-3" style={{ border: "2px dashed var(--border)" }}>
+        <div style={{ textAlign: "center", padding: "20px 0" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🎧</div>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>New Speaking Submission</div>
+          <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Record or upload your speaking response</p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <Btn>⏺ Record Audio</Btn>
+            <Btn variant="outline">📁 Upload File</Btn>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// WRITING PAGE
+// ─────────────────────────────────────────────
+const analyzeWriting = (text) => {
+  const words = text.split(/\s+/).length;
+
+  return {
+    grammarScore: Math.min(100, 60 + words / 5),
+    vocabularyScore: 70,
+    suggestions: [
+      "Use more complex sentence structures",
+      "Avoid repetition",
+      "Add linking words (however, moreover)"
+    ]
+  };
+};
+
+const WritingPage = ({ user }) => {
+  const [text, setText] = useState("");
+  const [grammarResult, setGrammarResult] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [subs, setSubs] = useState([]);
+
+  useEffect(() => {
+    submissionsAPI.getStudentSubs(user.id)
+      .then((res) => setSubs((res || []).filter((s) => s.task?.type === "writing" || s.type === "writing")))
+      .catch(() => setSubs([]));
+  }, [user.id]);
+  const words = text.split(/\s+/).filter(Boolean).length;
+
+  const checkGrammar = () => {
+    setChecking(true);
+    setTimeout(() => {
+      setGrammarResult(analyzeWriting(text));
+      setChecking(false);
+    }, 800);
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Writing Submissions</div>
+
+      {/* New Writing */}
+      <Card className="fade-up-2" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, marginBottom: 14 }}>New Writing Task</div>
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
+          placeholder="Write your response here… (minimum 150 words for Task 1, 250 for Task 2)"
+          style={{
+            width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10,
+            padding: 14, color: "var(--text)", fontSize: 13, resize: "vertical", outline: "none"
+          }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+          <div style={{ fontSize: 13, color: words >= 150 ? "var(--success)" : "var(--muted)" }}>
+            {words} words {words >= 150 ? "✓" : `(${150 - words} more needed)`}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="outline" size="sm" onClick={checkGrammar} disabled={checking}>
+              {checking ? "Checking…" : "🔍 AI Grammar Check"}
+            </Btn>
+            <Btn size="sm" disabled={words < 150}>Submit</Btn>
+          </div>
+        </div>
+
+        {grammarResult && (
+          <div style={{ marginTop: 16, padding: 16, background: "var(--bg3)", borderRadius: 10 }}>
+            <div style={{ fontWeight: 600, marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
+              <span>AI Writing Analysis</span>
+              <Badge label={`Score: ${grammarResult.grammarScore}/100`} color="success" />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 8 }}>
+                <strong>Suggestions:</strong>
+              </div>
+              {grammarResult.suggestions.map((s, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, fontSize: 13 }}>
+                  <span style={{ color: "var(--accent)", marginTop: 2 }}>→</span>
+                  <span style={{ color: "var(--text)" }}>{s}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
+              <div>
+                <span style={{ color: "var(--muted)" }}>Grammar:</span>
+                <div style={{ color: "var(--accent)", fontWeight: 700 }}>{grammarResult.grammarScore}/100</div>
+              </div>
+              <div>
+                <span style={{ color: "var(--muted)" }}>Vocabulary:</span>
+                <div style={{ color: "var(--accent)", fontWeight: 700 }}>{grammarResult.vocabularyScore}/100</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Past submissions */}
+      <div className="fade-up-3" style={{ fontWeight: 600, marginBottom: 12 }}>Past Submissions</div>
+      {subs.map(s => (
+        <Card key={s.id} className="fade-up-4" style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ fontWeight: 600 }}>{s.taskTitle}</div>
+            <StatusBadge status={s.status} />
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{s.date}</div>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// PROGRESS PAGE
+// ─────────────────────────────────────────────
+const ProgressPage = ({ user }) => {
+  const skillData = [
+    { label: "Listening", score: 7.0, color: "var(--success)" },
+    { label: "Reading",   score: 6.5, color: "var(--warn)" },
+    { label: "Writing",   score: 6.0, color: "#a78bfa" },
+    { label: "Speaking",  score: 6.5, color: "var(--accent)" },
+  ];
+  const overall = (skillData.reduce((a, b) => a + b.score, 0) / skillData.length).toFixed(1);
+  const weakAreas = skillData.filter(s => s.score < 6.5).map(s => s.label);
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Progress Tracker</div>
+
+      {/* Overall band */}
+      <Card className="fade-up-2" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(79,142,247,.12),rgba(124,58,237,.08))" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <div style={{ textAlign: "center" }}>
+            <div className="playfair" style={{ fontSize: 56, fontWeight: 700, color: "var(--accent)", lineHeight: 1 }}>{overall}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Estimated Band</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Overall Progress</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>Day 14 of 60 · 77% to go</div>
+            <ProgressBar pct={23} height={8} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+              <span>Day 1</span><span>Day 60</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Weak Areas */}
+      {weakAreas.length > 0 && (
+        <Card className="fade-up-3" style={{ marginBottom: 20, background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.2)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 12, color: "var(--danger)" }}>⚠ Areas to Improve</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {weakAreas.map(w => <Badge key={w} label={w} color="danger" />)}
+          </div>
+        </Card>
+      )}
+
+      {/* Skills */}
+      <Card className="fade-up-4" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, marginBottom: 16 }}>Skills Breakdown</div>
+        {skillData.map((s, i) => (
+          <div key={i} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 13 }}>{s.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>Band {s.score}</span>
+            </div>
+            <ProgressBar pct={(s.score / 9) * 100} color={s.color} height={8} />
+          </div>
+        ))}
+      </Card>
+
+      {/* Streak */}
+      <Card className="fade-up-5" style={{ background: "rgba(245,200,66,.06)", border: "1px solid rgba(245,200,66,.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ fontSize: 40 }}>🔥</div>
+          <div>
+            <div className="playfair" style={{ fontSize: 28, fontWeight: 700, color: "var(--gold)" }}>{user.streak} Days</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Current streak – keep it up!</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 16, flexWrap: "wrap" }}>
+          {Array.from({ length: 14 }, (_, i) => (
+            <div key={i} style={{
+              width: 28, height: 28, borderRadius: 6,
+              background: i < user.streak ? "var(--gold)" : "var(--border)",
+              opacity: i < user.streak ? 1 : .4,
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12
+            }}>{i < user.streak ? "✓" : ""}</div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="fade-up-3">
+        <div style={{ fontWeight: 600, marginBottom: 14 }}>Your Writing History</div>
+        {subs.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>No writing submissions yet.</div>
+        ) : subs.map((s) => (
+          <div key={s.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
+              <StatusBadge status={s.status} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>{new Date(s.submitted_at).toLocaleString()}</div>
+            {s.feedback_text && <div style={{ marginTop: 8, fontSize: 13, color: "var(--text)" }}>{s.feedback_text}</div>}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// STUDENT – PLANS & ENROLLMENT
+// ─────────────────────────────────────────────
+const StudentPlansPage = () => {
+  const [plans, setPlans] = useState([]);
+  const [activePlanId, setActivePlanId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [allPlans, mine] = await Promise.all([plansAPI.getAll(), plansAPI.getMy()]);
+      setPlans(allPlans || []);
+      setActivePlanId(mine?.active_plan?.plan_id || null);
+    } catch (e) {
+      setMsg(e.message || "Failed to load plans");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const choosePlan = async (planId) => {
+    try {
+      setMsg("");
+      await plansAPI.select(planId);
+      setActivePlanId(planId);
+      setMsg("Plan selected. Notification email sent to srsurajith@gmail.com.");
+    } catch (e) {
+      setMsg(e.message || "Plan selection failed");
+    }
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Choose Your Training Plan</div>
+      <p className="fade-up-2" style={{ color: "var(--muted)", marginBottom: 20 }}>
+        Solo plans include 1:1 coaching every 2 days. Group plans require attendance from all enrolled members every 2 days.
+      </p>
+
+      {msg && <Card style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.35)", background: "rgba(20,108,114,.08)" }}>{msg}</Card>}
+
+      {loading ? <Spinner /> : (
+        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
+          {plans.map((p) => (
+            <Card key={p.id} className="fade-up-3" style={{ border: activePlanId === p.id ? "2px solid var(--accent)" : "1px solid var(--border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="playfair" style={{ fontSize: 18, fontWeight: 700 }}>{p.name}</div>
+                <Badge label={`${p.duration_days} days`} color="accent" />
+              </div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Mode: {p.session_type}</div>
+              <div style={{ fontSize: 13, color: "var(--text)", minHeight: 64 }}>{p.description || "Structured IELTS roadmap with speaking, writing, reading, and listening."}</div>
+              <div style={{ marginTop: 12 }}>
+                <Btn onClick={() => choosePlan(p.id)} disabled={activePlanId === p.id} style={{ width: "100%" }}>
+                  {activePlanId === p.id ? "Current Plan" : "Choose Plan"}
+                </Btn>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// STUDENT – GAMES ARENA
+// ─────────────────────────────────────────────
+const GamesArenaPage = () => {
+  const quiz = [
+    { q: "Choose the best connector: 'The train was late, ___ we still arrived on time.'", a: ["however", "although", "because"], c: 0 },
+    { q: "Identify the noun phrase: 'The rapid growth of online classes'", a: ["rapid growth", "online", "classes"], c: 0 },
+    { q: "Pick the formal alternative to 'kids'.", a: ["children", "buddies", "teens"], c: 0 },
+    { q: "Which sentence is more concise?", a: ["Due to the fact that it rained,", "Because it rained,"], c: 1 },
+  ];
+
+  const [idx, setIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const current = quiz[idx];
+
+  const pick = (optIdx) => {
+    if (answered) return;
+    setSelected(optIdx);
+    setAnswered(true);
+    if (optIdx === current.c) setScore((s) => s + 1);
+  };
+
+  const next = () => {
+    setAnswered(false);
+    setSelected(null);
+    setIdx((i) => (i + 1) % quiz.length);
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>IELTS Games Arena</div>
+      <p className="fade-up-2" style={{ color: "var(--muted)", marginBottom: 16 }}>Build grammar, vocabulary, and concise writing reflexes with fast drills.</p>
+
+      <Card className="fade-up-3" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700 }}>Quick Drill</div>
+          <Badge label={`Score ${score}/${quiz.length}`} color="success" />
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{current.q}</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {current.a.map((opt, i) => {
+            const isCorrect = answered && i === current.c;
+            const isWrong = answered && selected === i && i !== current.c;
+            return (
+              <button
+                key={i}
+                onClick={() => pick(i)}
+                style={{
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${isCorrect ? "var(--success)" : isWrong ? "var(--danger)" : "var(--border)"}`,
+                  background: isCorrect ? "rgba(47,133,90,.12)" : isWrong ? "rgba(197,48,48,.1)" : "var(--bg3)",
+                  color: "var(--text)",
+                  fontSize: 13,
+                  cursor: "pointer"
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 12 }}><Btn onClick={next} variant="outline">Next Drill</Btn></div>
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// MOCK TEST PAGE
+// ─────────────────────────────────────────────
+const MOCK_TEST_BANK = {
+  writing: {
+    title: "Writing Task 2: Public Space Priority",
+    duration: 40,
+    wordTarget: 250,
+    prompt: "Some people argue that city budgets should prioritize public parks and libraries rather than sports arenas. Discuss both views and give your opinion.",
+    checklist: [
+      "State your position clearly in the introduction.",
+      "Use one paragraph per main argument.",
+      "Support each argument with a practical example.",
+      "Write a short conclusion that reinforces your view."
+    ]
+  },
+  reading: {
+    title: "Reading Passage: The Night Shift Effect",
+    duration: 20,
+    prompt: "A workplace study tracked 600 hospital employees over eight years. Researchers found that workers on rotating shifts reported lower sleep quality and higher stress. However, teams with predictable rosters and recovery days showed better concentration scores. The report recommends fixed schedules, mandatory quiet rooms, and hydration reminders during overnight hours.",
+    checklist: [
+      "TRUE/FALSE: The study lasted fewer than five years.",
+      "TRUE/FALSE: Predictable rosters improved concentration.",
+      "Choose TWO recommendations from the passage.",
+      "Write a one-sentence summary in your own words."
+    ]
+  },
+  listening: {
+    title: "Listening Notes: Campus Orientation",
+    duration: 15,
+    prompt: "You hear a student advisor explain orientation week. New students must collect ID cards before Wednesday, register for workshops online, and join one study group session. The library tour starts at 11:30, while language support appointments open on Friday.",
+    checklist: [
+      "What must be collected before Wednesday?",
+      "How should workshops be registered?",
+      "At what time does the library tour begin?",
+      "On which day do language appointments open?"
+    ]
+  },
+  speaking: {
+    title: "Speaking Part 2: A Skill You Learned",
+    duration: 10,
+    prompt: "Describe a skill you learned recently. You should say when you started learning it, what challenges you faced, how you practiced, and why it is useful for your future.",
+    checklist: [
+      "Speak for 1 to 2 minutes.",
+      "Use specific examples instead of general statements.",
+      "Include one difficulty and how you solved it.",
+      "Finish with a future goal."
+    ]
+  }
+};
+
+const MockTestPage = () => {
+  const [activeSkill, setActiveSkill] = useState("writing");
+  const skill = MOCK_TEST_BANK[activeSkill];
+  const [timeLeft, setTimeLeft] = useState(skill.duration * 60);
+  const [testText, setTestText] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    setTimeLeft(skill.duration * 60);
+    setSubmitted(false);
+    setTestText("");
+  }, [activeSkill, skill.duration]);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(t);
+          setSubmitted(true);
+          alert("Time's up!");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(t);
+  }, []);
+
+  const format = (s) => `${Math.floor(s/60)}:${String(s % 60).padStart(2, "0")}`;
+  const words = testText.split(/\s+/).filter(Boolean).length;
+  const requiresEssay = activeSkill === "writing";
+  const minWords = requiresEssay ? skill.wordTarget : 40;
+  const readyToSubmit = words >= minWords;
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>
+        Mock Test Studio
+      </div>
+
+      <div className="fade-up-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {Object.keys(MOCK_TEST_BANK).map((k) => (
+          <Btn
+            key={k}
+            size="sm"
+            variant={activeSkill === k ? "primary" : "outline"}
+            onClick={() => setActiveSkill(k)}
+          >
+            {k[0].toUpperCase() + k.slice(1)}
+          </Btn>
+        ))}
+      </div>
+
+      <Card className="fade-up-3" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(20,108,114,.12),rgba(214,148,41,.10))", border: "1px solid rgba(20,108,114,.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>{skill.title}</div>
+            <div className="playfair" style={{ fontSize: 36, fontWeight: 700, color: timeLeft < 300 ? "var(--danger)" : "var(--warn)", fontVariantNumeric: "tabular-nums" }}>
+              {format(timeLeft)}
+            </div>
+          </div>
+          <ProgressRing pct={Math.round((timeLeft / (skill.duration * 60)) * 100)} size={100} color={timeLeft < 120 ? "var(--danger)" : "var(--accent)"} />
+        </div>
+      </Card>
+
+      <Card className="fade-up-4">
+        <div style={{ fontWeight: 700, marginBottom: 14 }}>{skill.title}</div>
+        <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
+          {skill.prompt}
+        </p>
+        <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "rgba(20,108,114,.08)", border: "1px solid rgba(20,108,114,.2)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Checklist</div>
+          {skill.checklist.map((item, idx) => (
+            <div key={idx} style={{ fontSize: 12, color: "var(--text)", marginBottom: 5 }}>• {item}</div>
+          ))}
+        </div>
+        <textarea
+          value={testText}
+          onChange={e => setTestText(e.target.value)}
+          disabled={submitted}
+          placeholder="Write your answer here…"
+          rows={10}
+          style={{
+            width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10,
+            padding: 14, color: "var(--text)", fontSize: 13, resize: "vertical", outline: "none"
+          }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            {words} words {readyToSubmit ? "✓" : `(${Math.max(minWords - words, 0)} more)`}
+          </span>
+          <Btn onClick={() => setSubmitted(true)} disabled={submitted || !readyToSubmit}>
+            {submitted ? "✓ Submitted" : "Submit Test"}
+          </Btn>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// LEADERBOARD PAGE
+// ─────────────────────────────────────────────
+const LeaderboardPage = () => {
+  const [leaderboardData, setLeaderboardData] = useState([]);
+
+  useEffect(() => {
+    usersAPI.getStudents()
+      .then((res) => {
+        const ranked = (res || [])
+          .map((u) => ({
+            name: u.name,
+            streak: u.streak || 0,
+            score: u.score || 0,
+            points: Math.round((u.score || 0) * 10 + (u.streak || 0) * 4),
+          }))
+          .sort((a, b) => b.points - a.points)
+          .map((u, index) => ({ ...u, rank: index + 1 }));
+        setLeaderboardData(ranked);
+      })
+      .catch(() => setLeaderboardData([]));
+  }, []);
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>
+        Leaderboard 🏆
+      </div>
+
+      <div className="fade-up-2">
+        {leaderboardData.map((u, i) => {
+          const isMedal = u.rank <= 3;
+          const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
+          return (
+            <Card key={i} style={{
+              marginBottom: 12, background: isMedal ? `rgba(${u.rank === 1 ? "245,200,66" : u.rank === 2 ? "192,192,192" : "205,127,50"},.08)` : "transparent",
+              border: isMedal ? `2px solid ${u.rank === 1 ? "var(--gold)" : u.rank === 2 ? "#c0c0c0" : "#cd7f32"}` : "1px solid var(--border)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ fontSize: 24, fontWeight: 700, minWidth: 40 }}>
+                  {isMedal ? medals[u.rank] : `#${u.rank}`}
+                </div>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,var(--accent),var(--accent2))",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, flexShrink: 0
+                }}>{u.name[0]}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>🔥 {u.streak} day streak</div>
+                </div>
+                <div style={{ textAlign: "right", display: "flex", gap: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Score</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)" }}>{u.score}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Points</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--accent)" }}>{u.points}</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// LIVE CLASS PAGE
+// ─────────────────────────────────────────────
+const LiveClassPage = ({ user }) => {
+  const [activePlan, setActivePlan] = useState(null);
+
+  useEffect(() => {
+    plansAPI.getMy().then((res) => setActivePlan(res?.active_plan?.plan || null)).catch(() => setActivePlan(null));
+  }, []);
+
+  const meetingMode = activePlan?.session_type === "group" ? "Group" : "Solo";
+  const cadenceText = "Every 2 days";
+  const meetingLink = user.zoom_link || `https://meet.jit.si/ielts-${user.id}-session`;
+  const topics = [
+    "Speaking Band Boost Lab",
+    "Writing Structure Clinic",
+    "Reading Speed and Accuracy",
+    "Listening Trap Questions"
+  ];
+  const upcoming = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i * 2);
+    return {
+      date: d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+      time: "7:00 PM",
+      topic: topics[i % topics.length]
+    };
+  });
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Live Sessions 🎥</div>
+
+      <Card className="fade-up-2" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(20,108,114,.12),rgba(214,148,41,.08))", border: "1px solid rgba(20,108,114,.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎥</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{activePlan?.name || "No plan selected yet"}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>{meetingMode} training · {cadenceText}</div>
+          </div>
+          <div style={{ marginLeft: "auto", fontSize: 12, color: "var(--muted)" }}>
+            {meetingMode === "Group" ? "All users in this plan are requested to join each session." : "1:1 session with teacher."}
+          </div>
+        </div>
+        <a href={meetingLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+          <button style={{ background: "#2D8CFF", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer", width: "100%" }}>
+            Join Live Meeting Room
+          </button>
+        </a>
+      </Card>
+
+      <Card className="fade-up-3">
+        <div style={{ fontWeight: 600, marginBottom: 14 }}>Upcoming Sessions</div>
+        {upcoming.map((s, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: i < upcoming.length - 1 ? "1px solid var(--border)" : "none" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{s.topic}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{s.date} · {s.time}</div>
+            </div>
+            <Btn size="sm" variant="outline">Remind Me</Btn>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// ADMIN – OVERVIEW
+// ─────────────────────────────────────────────
+const AdminHome = () => {
+  const [students, setStudents] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [pending, setPending] = useState([]);
+
+  useEffect(() => {
+    Promise.all([usersAPI.getStudents(), plansAPI.getAll(), submissionsAPI.getPending()])
+      .then(([s, p, pend]) => {
+        setStudents(s || []);
+        setPlans(p || []);
+        setPending(pend || []);
+      })
+      .catch(() => {
+        setStudents([]);
+        setPlans([]);
+        setPending([]);
+      });
+  }, []);
+
+  const avgScore = students.length ? Math.round(students.reduce((acc, s) => acc + (s.score || 0), 0) / students.length) : 0;
+  const stats = [
+    { label: "Total Students", value: students.length, icon: "👥", color: "var(--accent)" },
+    { label: "Active Plans", value: plans.length, icon: "📋", color: "var(--success)" },
+    { label: "Pending Review", value: pending.length, icon: "🔍", color: "var(--warn)" },
+    { label: "Avg Score", value: avgScore, icon: "🎯", color: "var(--gold)" },
+  ];
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 26, fontWeight: 700, marginBottom: 6 }}>Teacher Dashboard</div>
+      <p className="fade-up-2" style={{ color: "var(--muted)", marginBottom: 24 }}>Overview of all students and plans</p>
+
+      <div className="fade-up-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 14, marginBottom: 24 }}>
+        {stats.map((s, i) => (
+          <Card key={i} style={{ textAlign: "center", padding: "20px" }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>{s.icon}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{s.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="fade-up-3">
+        <div style={{ fontWeight: 600, marginBottom: 14 }}>Students at a Glance</div>
+        {students.map(s => (
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,var(--accent),var(--accent2))",
+              display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, flexShrink: 0
+            }}>{s.name[0]}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.email}</div>
+            </div>
+            <div style={{ width: 100, fontSize: 11, color: "var(--muted)" }}>🔥 {s.streak || 0} streak</div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)" }}>{s.score}</div>
+              <div style={{ fontSize: 10, color: "var(--muted)" }}>Est. score</div>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// ADMIN – STUDENTS
+// ─────────────────────────────────────────────
+const AdminStudents = () => {
+  const [students, setStudents] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [tag, setTag] = useState("");
+
+  useEffect(() => {
+    usersAPI.getStudents().then((res) => setStudents(res || [])).catch(() => setStudents([]));
+  }, []);
+
+  const addWeakArea = async () => {
+    if (!selected || !tag.trim()) return;
+    const existing = selected.weak_areas || [];
+    const merged = Array.from(new Set([...existing, tag.trim()]));
+    await usersAPI.update(selected.id, { weak_areas: merged.join(',') });
+    const refreshed = await usersAPI.getStudents();
+    setStudents(refreshed || []);
+    setSelected((refreshed || []).find((u) => u.id === selected.id) || null);
+    setTag("");
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Students</div>
+      <div style={{ display: "grid", gap: 14, gridTemplateColumns: selected ? "1fr 1fr" : "1fr" }}>
+        <div>
+          {students.map(s => (
+            <Card key={s.id} style={{ marginBottom: 14, cursor: "pointer", border: selected?.id === s.id ? "1px solid var(--accent)" : "1px solid var(--border)" }}
+              onClick={() => setSelected(s)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  background: "linear-gradient(135deg,var(--accent),var(--accent2))",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700
+                }}>{s.name[0]}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{s.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.email}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.role}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, justifyContent: "flex-end" }}>
+                    <span style={{ fontSize: 12 }}>🔥 {s.streak}</span>
+                    <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>Score: {s.score}</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {selected && (
+          <Card>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+              <div className="playfair" style={{ fontSize: 18, fontWeight: 600 }}>{selected.name}</div>
+              <button onClick={() => setSelected(null)} style={{ background: "none", color: "var(--muted)", fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+              {[
+                { l: "Score", v: selected.score, c: "var(--gold)" },
+                { l: "Streak", v: `${selected.streak}🔥`, c: "var(--warn)" },
+                  { l: "Role", v: selected.role, c: "var(--accent)" },
+              ].map((s, i) => (
+                <div key={i} style={{ flex: 1, minWidth: 80, textAlign: "center", background: "var(--bg3)", borderRadius: 10, padding: "12px 8px" }}>
+                  <div style={{ fontWeight: 700, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Weak Areas</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+              {(selected.weak_areas || []).map((w, i) => <Badge key={i} label={w} color="danger" />)}
+            </div>
+
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Add Weak Area Tag</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input value={tag} onChange={e => setTag(e.target.value)} placeholder="e.g. Grammar" style={{
+                flex: 1, background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 8,
+                padding: "8px 12px", color: "var(--text)", fontSize: 13, outline: "none"
+              }} />
+              <Btn size="sm" onClick={addWeakArea}>Add</Btn>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <Btn style={{ width: "100%" }} variant="purple">Assign New Plan</Btn>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// ADMIN – PLANS
+// ─────────────────────────────────────────────
+const AdminPlans = () => {
+  const [plans, setPlans] = useState([]);
+  const [showNew, setShowNew] = useState(false);
+  const [planName, setPlanName] = useState("");
+  const [planDays, setPlanDays] = useState(60);
+  const [sessionType, setSessionType] = useState("solo");
+  const [description, setDescription] = useState("");
+
+  const refreshPlans = async () => {
+    const res = await plansAPI.getAll();
+    setPlans(res || []);
+  };
+
+  useEffect(() => { refreshPlans().catch(() => setPlans([])); }, []);
+
+  const createNewPlan = async () => {
+    await plansAPI.create({
+      name: planName,
+      duration_days: Number(planDays),
+      session_type: sessionType,
+      description,
+    });
+    setShowNew(false);
+    setPlanName("");
+    setPlanDays(60);
+    setSessionType("solo");
+    setDescription("");
+    await refreshPlans();
+  };
+
+  const inp = {
+    width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10,
+    padding: "10px 14px", color: "var(--text)", fontSize: 13, outline: "none"
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div className="playfair fade-up" style={{ fontSize: 22, fontWeight: 700 }}>Plans</div>
+        <Btn onClick={() => setShowNew(e => !e)}>+ New Plan</Btn>
+      </div>
+
+      {showNew && (
+        <Card className="fade-up" style={{ marginBottom: 20, border: "1px solid var(--accent)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 14 }}>Create New Plan</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Plan Name</label>
+              <input style={inp} value={planName} onChange={e => setPlanName(e.target.value)} placeholder="e.g. 60-Day Intensive" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Duration (days)</label>
+              <input style={inp} type="number" value={planDays} onChange={e => setPlanDays(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Session Type</label>
+              <select style={inp} value={sessionType} onChange={e => setSessionType(e.target.value)}>
+                <option value="solo">solo</option>
+                <option value="group">group</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Description / Pricing</label>
+              <textarea rows={3} style={inp} value={description} onChange={e => setDescription(e.target.value)} placeholder="INR 10000 for 60 days, every 2 days session" />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn onClick={createNewPlan} disabled={!planName.trim()}>Create Plan</Btn>
+              <Btn variant="ghost" onClick={() => setShowNew(false)}>Cancel</Btn>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
+        {plans.map(p => (
+          <Card key={p.id} className="fade-up-2">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <div className="playfair" style={{ fontSize: 17, fontWeight: 600 }}>{p.name}</div>
+              <Badge label={`${p.duration_days} days`} color="accent" />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Mode: {p.session_type}</div>
+            <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 14 }}>{p.description}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn size="sm" variant="outline">Configure Tasks</Btn>
+              <Btn size="sm">Assign</Btn>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// ADMIN – REVIEW (FEEDBACK)
+// ─────────────────────────────────────────────
+const AdminReview = () => {
+  const [selected, setSelected] = useState(null);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackFile, setFeedbackFile] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const [pending, setPending] = useState([]);
+
+  useEffect(() => {
+    submissionsAPI.getPending().then((res) => setPending(res || [])).catch(() => setPending([]));
+  }, []);
+
+  const saveFeedback = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await feedbackAPI.create(selected.id, feedback, feedbackFile);
+      const refreshed = await submissionsAPI.getPending();
+      setPending(refreshed || []);
+      setSelected(null);
+      setFeedback("");
+      setFeedbackFile(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Review Submissions</div>
+      <p className="fade-up-2" style={{ color: "var(--muted)", marginBottom: 20 }}>{pending.length} submissions awaiting feedback</p>
+
+      <div style={{ display: "grid", gap: 14, gridTemplateColumns: selected ? "1fr 1fr" : "1fr" }}>
+        <div>
+          {pending.map((s) => (
+            <Card key={s.id} className="fade-up-3" style={{ marginBottom: 14, cursor: "pointer", border: selected?.id === s.id ? "1px solid var(--accent)" : "1px solid var(--border)" }}
+              onClick={() => { setSelected(s); setFeedback(s.feedback_text || ""); setFeedbackFile(null); }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
+                <StatusBadge status={s.status} />
+              </div>
+              <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--muted)" }}>
+                <span>📅 {new Date(s.submitted_at).toLocaleString()}</span>
+                <TaskTypeBadge type={s.task?.type || "writing"} />
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {selected && (
+          <Card className="fade-up">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
+              <div className="playfair" style={{ fontSize: 16, fontWeight: 600 }}>Give Feedback</div>
+              <button onClick={() => setSelected(null)} style={{ background: "none", color: "var(--muted)", fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ padding: 12, background: "var(--bg3)", borderRadius: 10, marginBottom: 14 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Task #{selected.task_id}</div>
+              <div style={{ display: "flex", gap: 8 }}><TaskTypeBadge type={selected.task?.type || "writing"} /><StatusBadge status={selected.status} /></div>
+            </div>
+            {(selected.task?.type || selected.type) === "speaking" && (
+              <div style={{ marginBottom: 14 }}>
+                <Btn size="sm" variant="outline">▶ Play Student Recording</Btn>
+              </div>
+            )}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Written Feedback</label>
+              <textarea value={feedback} onChange={e => setFeedback(e.target.value)} rows={5}
+                placeholder="Write detailed feedback here…"
+                style={{
+                  width: "100%", background: "var(--bg3)", border: "1px solid var(--border)",
+                  borderRadius: 10, padding: 12, color: "var(--text)", fontSize: 13, resize: "vertical", outline: "none"
+                }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Audio Feedback</label>
+              <input type="file" accept="audio/*" style={{ fontSize: 13, color: "var(--muted)" }} onChange={(e) => setFeedbackFile(e.target.files?.[0] || null)} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn onClick={saveFeedback} disabled={saving}>
+                {saving ? "Saving…" : "Save Feedback"}
+              </Btn>
+              <Btn variant="outline" size="sm">Mark Reviewed</Btn>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// ADMIN – TASKS EDITOR
+// ─────────────────────────────────────────────
+const AdminTasks = () => {
+  const [day, setDay] = useState(1);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    plansAPI.getAll()
+      .then((res) => {
+        const loadedPlans = res || [];
+        setPlans(loadedPlans);
+        if (!selectedPlan && loadedPlans.length) setSelectedPlan(loadedPlans[0].id);
+      })
+      .catch(() => setPlans([]));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPlan) return;
+    apiCall(`/tasks/plan/${selectedPlan}/day/${day}`)
+      .then((res) => setTasks(res?.tasks || []))
+      .catch(() => setTasks([]));
+  }, [selectedPlan, day]);
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Task Editor</div>
+      <Card className="fade-up-2" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12 }}>Select Plan and Day</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          {plans.map((plan) => (
+            <Btn key={plan.id} size="sm" variant={selectedPlan === plan.id ? "primary" : "outline"} onClick={() => setSelectedPlan(plan.id)}>
+              {plan.name}
+            </Btn>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {[1, 2, 3, 4, 5, 6, 7].map(d => (
+            <button key={d} onClick={() => setDay(d)} style={{
+              width: 40, height: 40, borderRadius: 8, fontWeight: 600, fontSize: 13,
+              background: day === d ? "var(--accent)" : "var(--bg3)",
+              color: day === d ? "#fff" : "var(--muted)",
+              border: "1px solid var(--border)", cursor: "pointer"
+            }}>D{d}</button>
+          ))}
+          <span style={{ fontSize: 12, color: "var(--muted)", alignSelf: "center" }}>…and so on</span>
+        </div>
+      </Card>
+
+      <div className="fade-up-3">
+        {tasks.map((t) => (
+          <Card key={t.id} style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{t.title}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <TaskTypeBadge type={t.type} />
+                  <Badge label={t.duration} color="gold" />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn size="sm" variant="outline">Edit</Btn>
+                <Btn size="sm" variant="danger">Remove</Btn>
+              </div>
+            </div>
+          </Card>
+        ))}
+        <Btn style={{ marginTop: 8 }}>+ Add Task to Day {day}</Btn>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// MAIN APP
+// ─────────────────────────────────────────────
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState("dashboard");
+
+  const handleLogin = (u) => {
+    setUser(u);
+    setPage(u.role === "admin" ? "admin-home" : "dashboard");
+  };
+
+  const handleLogout = () => { setUser(null); setPage("dashboard"); };
+
+  if (!user) return <><GlobalStyles /><LoginPage onLogin={handleLogin} /></>;
+
+  const studentPages = {
+    dashboard: <StudentDashboard user={user} />,
+    plans:     <StudentPlansPage user={user} />,
+    tasks:     <TasksPage user={user} />,
+    speaking:  <SpeakingPage user={user} />,
+    writing:   <WritingPage user={user} />,
+    progress:  <ProgressPage user={user} />,
+    mocktest:  <MockTestPage />,
+    games:     <GamesArenaPage />,
+    leaderboard: <LeaderboardPage />,
+    liveclass: <LiveClassPage user={user} />,
+  };
+  const adminPages = {
+    "admin-home":     <AdminHome />,
+    "admin-students": <AdminStudents />,
+    "admin-plans":    <AdminPlans />,
+    "admin-tasks":    <AdminTasks />,
+    "admin-review":   <AdminReview />,
+  };
+  const pages = user.role === "admin" ? adminPages : studentPages;
+  const content = pages[page] || <div style={{ color: "var(--muted)" }}>Page not found</div>;
+
+  return (
+    <>
+      <GlobalStyles />
+      <div style={{ display: "flex", minHeight: "100vh" }}>
+        <Sidebar page={page} setPage={setPage} user={user} onLogout={handleLogout} />
+        <main style={{ marginLeft: "var(--sidebar-w)", flex: 1, padding: "32px 32px 32px", minHeight: "100vh", overflowY: "auto" }}>
+          <div style={{ maxWidth: 860 }}>
+            {content}
+          </div>
+        </main>
+      </div>
+    </>
+  );
+}

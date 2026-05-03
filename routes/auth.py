@@ -1,0 +1,203 @@
+from datetime import datetime, timedelta
+import secrets
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from werkzeug.security import generate_password_hash, check_password_hash
+from models.db import db
+from models.user import User
+from models.login_request import LoginRequest
+from utils.emailer import send_email
+
+auth_bp = Blueprint('auth', __name__)
+
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """
+    Register a new user
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+              example: "John Doe"
+            email:
+              type: string
+              example: "john@example.com"
+            password:
+              type: string
+              example: "password123"
+    responses:
+      201:
+        description: User registered successfully
+      409:
+        description: Email already registered
+    """
+    data = request.get_json() or {}
+    if not data.get('email') or not data.get('password') or not data.get('name'):
+      return jsonify({'error': 'name, email and password are required'}), 400
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'Email already registered'}), 409
+    user = User(
+        name=data['name'],
+        email=data['email'],
+        password=generate_password_hash(data['password']),
+        role='student'
+    )
+    db.session.add(user)
+    db.session.commit()
+    token = create_access_token(identity=str(user.id))
+    return jsonify({'token': token, 'user': user.to_dict()}), 201
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """
+    Login user and get JWT token
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+              example: "admin@ielts.com"
+            password:
+              type: string
+              example: "admin123"
+    responses:
+      200:
+        description: Login successful
+      401:
+        description: Invalid credentials
+    """
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+    if not email or not password:
+      return jsonify({'error': 'email and password are required'}), 400
+    user = User.query.filter_by(email=email).first()
+    if not user or not check_password_hash(user.password, password):
+        return jsonify({'error': 'Invalid credentials'}), 401
+
+    # Optional approval gate for student logins.
+    # Only active when REQUIRE_LOGIN_APPROVAL=true AND SMTP is fully configured.
+    smtp_ready = all([
+        current_app.config.get('SMTP_HOST'),
+        current_app.config.get('SMTP_USER'),
+        current_app.config.get('SMTP_PASS'),
+    ])
+    approval_enabled = (
+        current_app.config.get('REQUIRE_LOGIN_APPROVAL', False)
+        and user.role == 'student'
+        and smtp_ready
+    )
+
+    if approval_enabled:
+      now = datetime.utcnow()
+      approved_request = LoginRequest.query.filter(
+        LoginRequest.email == user.email,
+        LoginRequest.approved.is_(True),
+        LoginRequest.used.is_(False),
+        LoginRequest.expires_at > now,
+      ).order_by(LoginRequest.created_at.desc()).first()
+
+      if not approved_request:
+        pending = LoginRequest.query.filter(
+          LoginRequest.email == user.email,
+          LoginRequest.approved.is_(False),
+          LoginRequest.expires_at > now,
+        ).order_by(LoginRequest.created_at.desc()).first()
+
+        if not pending:
+          pending = LoginRequest(
+            email=user.email,
+            token=secrets.token_urlsafe(32),
+            expires_at=now + timedelta(minutes=20),
+          )
+          db.session.add(pending)
+          db.session.commit()
+
+        backend_base = current_app.config.get('BACKEND_BASE_URL') or request.host_url.rstrip('/')
+        approve_url = f"{backend_base.rstrip('/')}/api/auth/approve/{pending.token}"
+        subject = f"Approve student login: {user.email}"
+        body = (
+          "A student requested login access.\n\n"
+          f"Student: {user.name} ({user.email})\n"
+          f"Requested at: {now.isoformat()} UTC\n\n"
+          "Approve this login by opening:\n"
+          f"{approve_url}\n\n"
+          "This approval expires in 20 minutes."
+        )
+        try:
+            send_email(subject, body, current_app.config.get('ADMIN_APPROVER_EMAIL'), current_app.config)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send approval email: {e}")
+
+        return jsonify({
+          'error': 'Login requires admin approval. Approval link sent to admin email.',
+          'needs_approval': True,
+        }), 403
+
+      approved_request.used = True
+      db.session.commit()
+
+    # Update streak on every successful login
+    from datetime import date
+    today = date.today()
+    if user.last_active_date is None:
+        user.streak = 1
+    elif user.last_active_date == today:
+        pass  # already logged in today
+    elif (today - user.last_active_date).days == 1:
+        user.streak = (user.streak or 0) + 1
+    else:
+        user.streak = 1  # streak broken
+    user.last_active_date = today
+    db.session.commit()
+
+    token = create_access_token(identity=str(user.id))
+    return jsonify({'token': token, 'user': user.to_dict()}), 200
+
+
+@auth_bp.route('/approve/<token>', methods=['GET'])
+def approve_login(token):
+    """Approve a pending student login request via magic link."""
+    now = datetime.utcnow()
+    req = LoginRequest.query.filter_by(token=token).first()
+    if not req:
+        return jsonify({'error': 'Invalid approval link'}), 404
+    if req.expires_at <= now:
+        return jsonify({'error': 'Approval link expired'}), 410
+    req.approved = True
+    db.session.commit()
+    return jsonify({'message': f'Login approved for {req.email}. Student can now sign in.'}), 200
+
+@auth_bp.route('/me', methods=['GET'])
+@jwt_required()
+def me():
+    """
+    Get current user profile
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: User profile
+      401:
+        description: Unauthorized
+    """
+    user = User.query.get(int(get_jwt_identity()))
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify(user.to_dict())
