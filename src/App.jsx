@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, createContext, useRef } from "react";
+import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 
 // ─────────────────────────────────────────────
 // GLOBAL STYLES
@@ -62,13 +62,50 @@ const GlobalStyles = () => (
 // AUTH CONTEXT
 // ─────────────────────────────────────────────
 const AuthCtx = createContext(null);
-import { useState, useEffect, useContext, createContext, useRef } from "react";
 
 // ─────────────────────────────────────────────
 // API CONFIGURATION
 // ─────────────────────────────────────────────
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const ENV_API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
+  (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ||
+  "";
+
+// If running under Vite dev server, prefer a relative `/api` path so the dev-server
+// proxy (vite.config.js) forwards requests to the backend and avoids CORS.
+const IS_VITE_DEV = typeof import.meta !== "undefined" && !!import.meta.env && !!import.meta.env.DEV;
+
+const IS_GITHUB_FORWARDED_HOST =
+  typeof window !== "undefined" && /\.app\.github\.dev$/.test(window.location.hostname);
+
+const INFERRED_GITHUB_API_BASE_URL =
+  IS_GITHUB_FORWARDED_HOST
+    ? `${window.location.protocol}//${window.location.hostname.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev")}/api`
+    : "";
+
+const isLocalApiUrl = (value) =>
+  typeof value === "string" &&
+  (/^https?:\/\/localhost(?::\d+)?\/api\/?$/i.test(value) || /^https?:\/\/127\.0\.0\.1(?::\d+)?\/api\/?$/i.test(value));
+
+let API_BASE_URL = "http://localhost:5000/api";
+if (IS_VITE_DEV) {
+  API_BASE_URL = ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : "/api";
+} else if (IS_GITHUB_FORWARDED_HOST) {
+  API_BASE_URL = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : API_BASE_URL);
+} else {
+  API_BASE_URL = ENV_API_BASE_URL || API_BASE_URL;
+}
 const API_TIMEOUT = 10000;
+
+const parseJsonSafely = async (response) => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
 
 // Fetch with timeout
 const apiCall = async (endpoint, options = {}) => {
@@ -89,11 +126,16 @@ const apiCall = async (endpoint, options = {}) => {
       signal: controller.signal
     });
     
+    const data = await parseJsonSafely(response);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || `API error: ${response.status}`);
+      const message = data && typeof data === "object" && data.error
+        ? data.error
+        : `API error: ${response.status}`;
+      throw new Error(message);
     }
-    return await response.json();
+
+    return data;
   } finally {
     clearTimeout(timeout);
   }
