@@ -35,7 +35,7 @@ def give_feedback(submission_id):
       403:
         description: Forbidden (Admin only)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403

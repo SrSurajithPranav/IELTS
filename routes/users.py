@@ -21,7 +21,7 @@ def list_users():
       403:
         description: Forbidden (Admin only)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
@@ -57,7 +57,7 @@ def update_user(user_id):
       403:
         description: Forbidden
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     target = User.query.get_or_404(user_id)
     if user.role != 'admin' and uid != user_id:

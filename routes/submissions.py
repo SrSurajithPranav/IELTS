@@ -35,7 +35,7 @@ def submit():
       201:
         description: Submission created
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     task_id = request.form.get('task_id') or request.get_json().get('task_id')
     content = request.form.get('content', '')
     file_url = None
@@ -74,7 +74,7 @@ def student_submissions(student_id):
       200:
         description: Student submissions
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin' and uid != student_id:
         return jsonify({'error': 'Forbidden'}), 403
@@ -97,7 +97,7 @@ def pending():
       403:
         description: Forbidden (Admin only)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403

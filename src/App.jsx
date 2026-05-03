@@ -5,35 +5,35 @@ import React, { useState, useEffect, useContext, createContext, useRef } from "r
 // ─────────────────────────────────────────────
 const GlobalStyles = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #0d0f14;
-      --bg2:        #13161e;
-      --bg3:        #1a1e2a;
-      --border:     #252a38;
-      --accent:     #4f8ef7;
-      --accent2:    #7c3aed;
-      --gold:       #f5c842;
-      --success:    #22c55e;
-      --danger:     #ef4444;
-      --warn:       #f59e0b;
-      --text:       #e8eaf0;
-      --muted:      #6b7280;
-      --card:       #161b27;
-      --radius:     14px;
+      --bg:         #f4efe6;
+      --bg2:        #fdf8ef;
+      --bg3:        #fffaf2;
+      --border:     #dbcbb8;
+      --accent:     #146c72;
+      --accent2:    #0f4c5c;
+      --gold:       #d69429;
+      --success:    #2f855a;
+      --danger:     #c53030;
+      --warn:       #b7791f;
+      --text:       #1f2a33;
+      --muted:      #667380;
+      --card:       #fffcf7;
+      --radius:     16px;
       --sidebar-w:  240px;
     }
 
-    html, body, #root { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+    html, body, #root { height: 100%; font-family: 'Manrope', sans-serif; background: var(--bg); color: var(--text); }
 
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg2); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    .playfair { font-family: 'Playfair Display', serif; }
+    .playfair { font-family: 'Fraunces', serif; }
 
     button { cursor: pointer; border: none; font-family: inherit; }
     input, textarea, select { font-family: inherit; }
@@ -181,8 +181,34 @@ const submissionsAPI = {
   getPending: () => apiCall("/submissions/pending")
 };
 
+const feedbackAPI = {
+  create: async (submissionId, text, audioFile) => {
+    const formData = new FormData();
+    formData.append("feedback_text", text || "");
+    if (audioFile) formData.append("audio", audioFile, "feedback.webm");
+
+    const token = localStorage.getItem("jwt_token");
+    const response = await fetch(`${API_BASE_URL}/feedback/${submissionId}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const data = await parseJsonSafely(response);
+    if (!response.ok) {
+      throw new Error(data && typeof data === "object" && data.error ? data.error : `API error: ${response.status}`);
+    }
+    return data;
+  }
+};
+
 const plansAPI = {
   getAll: () => apiCall("/plans"),
+  getMy: () => apiCall("/plans/my"),
+  select: (planId) => apiCall("/plans/select", {
+    method: "POST",
+    body: JSON.stringify({ plan_id: planId })
+  }),
   create: (data) => apiCall("/plans", {
     method: "POST",
     body: JSON.stringify(data)
@@ -211,9 +237,21 @@ const batchesAPI = {
 const useAuth = () => useContext(AuthCtx);
 
 const MOCK_USERS = [
-  { id: 1, name: "Arjun Kumar",    email: "student@ielts.com", password: "123", role: "student", streak: 7,  zoom: "https://zoom.us/j/123456789", score: 68 },
-  { id: 2, name: "Priya Sharma",   email: "priya@ielts.com",   password: "123", role: "student", streak: 12, zoom: "https://zoom.us/j/123456789", score: 72 },
-  { id: 3, name: "Ms. Kavitha",    email: "teacher@ielts.com", password: "123", role: "admin",   streak: 0,  zoom: "" },
+  { id: 1, name: "Arjun Kumar",    email: "student1@gmail.com", password: "123456", role: "student", streak: 7,  zoom: "https://zoom.us/j/123456789", score: 68 },
+  { id: 2, name: "Priya Sharma",   email: "student2@gmail.com", password: "123456", role: "student", streak: 12, zoom: "https://zoom.us/j/123456789", score: 72 },
+  { id: 4, name: "Ravi Menon",     email: "student3@gmail.com", password: "123456", role: "student", streak: 2,  zoom: "https://zoom.us/j/123456789", score: 61 },
+  { id: 5, name: "Anjali Singh",   email: "student4@gmail.com", password: "123456", role: "student", streak: 5,  zoom: "https://zoom.us/j/123456789", score: 65 },
+  { id: 6, name: "Rohan Das",      email: "student5@gmail.com", password: "123456", role: "student", streak: 3,  zoom: "https://zoom.us/j/123456789", score: 59 },
+  { id: 3, name: "Surajith Pranav", email: "srsurajith@gmail.com", password: "admin123", role: "admin", streak: 0, zoom: "" },
+];
+
+const PRACTICE_LOGINS = [
+  { label: "Student 1", email: "student1@gmail.com", password: "123456" },
+  { label: "Student 2", email: "student2@gmail.com", password: "123456" },
+  { label: "Student 3", email: "student3@gmail.com", password: "123456" },
+  { label: "Student 4", email: "student4@gmail.com", password: "123456" },
+  { label: "Student 5", email: "student5@gmail.com", password: "123456" },
+  { label: "Admin", email: "srsurajith@gmail.com", password: "admin123" },
 ];
 
 // ─────────────────────────────────────────────
@@ -374,11 +412,13 @@ const Btn = ({ children, onClick, variant = "primary", size = "md", disabled = f
 const Sidebar = ({ page, setPage, user, onLogout }) => {
   const studentNav = [
     { id: "dashboard",    icon: "⊞",  label: "Dashboard" },
+    { id: "plans",        icon: "💼", label: "Plans" },
     { id: "tasks",        icon: "✓",  label: "Today's Tasks" },
     { id: "speaking",     icon: "🎧", label: "Speaking" },
     { id: "writing",      icon: "✍️", label: "Writing" },
     { id: "progress",     icon: "📊", label: "Progress" },
     { id: "mocktest",     icon: "⏱",  label: "Mock Test" },
+    { id: "games",        icon: "🧩", label: "Games" },
     { id: "leaderboard",  icon: "🏆", label: "Leaderboard" },
     { id: "liveclass",    icon: "🎥", label: "Live Class" },
   ];
@@ -483,7 +523,7 @@ const LoginPage = ({ onLogin }) => {
       const usr = res.user;
       onLogin({ id: usr.id, name: usr.name, email: usr.email, role: usr.role, streak: usr.streak || 0, score: usr.score || 0 });
     } catch (e) {
-      setErr(e.message || "Login failed");
+      setErr(e.message || "Login failed. If you are a student, wait for admin approval email confirmation.");
       setLoading(false);
     }
   };
@@ -526,11 +566,19 @@ const LoginPage = ({ onLogin }) => {
             </Btn>
           </div>
 
-          <div style={{ marginTop: 20, padding: "14px 16px", background: "var(--bg3)", borderRadius: 10, fontSize: 12, color: "var(--muted)" }}>
-            <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text)" }}>Demo Accounts</div>
-            <div>Student: student@ielts.com / 123</div>
-            <div>Teacher: teacher@ielts.com / 123</div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)" }}>Backend: {API_BASE_URL}</div>
+          <div style={{ marginTop: 20, padding: "14px 16px", background: "var(--bg3)", borderRadius: 10, fontSize: 12, color: "var(--muted)", border: "1px dashed var(--border)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>Practice Accounts</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {PRACTICE_LOGINS.map(acc => (
+                <div key={acc.email} style={{ background: "rgba(20,108,114,.08)", borderRadius: 8, padding: "6px 8px" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 11 }}>{acc.label}</div>
+                  <div style={{ fontSize: 11 }}>{acc.email}</div>
+                  <div style={{ fontSize: 11 }}>Pass: {acc.password}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)" }}>Student sign-in requires approval by srsurajith@gmail.com.</div>
+            <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>API: {API_BASE_URL}</div>
           </div>
         </Card>
       </div>
@@ -544,7 +592,7 @@ const LoginPage = ({ onLogin }) => {
 const TaskCard = ({ task, onSubmit }) => {
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState("");
-  const [submitted, setSubmitted] = useState(task.status !== "pending");
+  const [submitted, setSubmitted] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recTime, setRecTime] = useState(0);
   const timerRef = useRef(null);
@@ -591,10 +639,15 @@ const TaskCard = ({ task, onSubmit }) => {
     }
   };
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    setExpanded(false);
-    onSubmit && onSubmit(task.id);
+  const handleSubmit = async () => {
+    try {
+      await submissionsAPI.submit(task.id, text, audioBlob);
+      setSubmitted(true);
+      setExpanded(false);
+      onSubmit && onSubmit(task.id);
+    } catch (err) {
+      alert(err.message || "Submission failed");
+    }
   };
 
   const fmtTime = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
@@ -623,7 +676,7 @@ const TaskCard = ({ task, onSubmit }) => {
 
       {expanded && (
         <div style={{ padding: "0 20px 20px", borderTop: "1px solid var(--border)" }}>
-          <p style={{ color: "var(--muted)", fontSize: 13, margin: "16px 0" }}>{task.desc}</p>
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: "16px 0" }}>{task.description || task.desc}</p>
 
           {task.type === "writing" || task.type === "grammar" || task.type === "reading" ? (
             <div>
@@ -679,15 +732,32 @@ const TaskCard = ({ task, onSubmit }) => {
 // STUDENT DASHBOARD
 // ─────────────────────────────────────────────
 const StudentDashboard = ({ user }) => {
-  const completed = MOCK_TASKS.filter(t => t.status !== "pending").length;
-  const total = MOCK_TASKS.length;
+  const [todayTasks, setTodayTasks] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+
+  useEffect(() => {
+    Promise.all([tasksAPI.getToday(), submissionsAPI.getStudentSubs(user.id)])
+      .then(([tasksRes, submissionsRes]) => {
+        setTodayTasks(tasksRes?.tasks || []);
+        setSubmissions(submissionsRes || []);
+      })
+      .catch(() => {
+        setTodayTasks([]);
+        setSubmissions([]);
+      });
+  }, [user.id]);
+
+  const todayTaskIds = new Set(todayTasks.map((task) => task.id));
+  const todaySubmissions = submissions.filter((submission) => todayTaskIds.has(submission.task_id));
+  const completed = todaySubmissions.filter((s) => s.status === "reviewed" || s.status === "submitted").length;
+  const total = todayTasks.length || 1;
   const pct = Math.round((completed / total) * 100);
 
   const stats = [
-    { label: "Day",      value: "Day 14",       icon: "📅", color: "var(--accent)" },
+    { label: "Day",      value: `Day ${todayTasks[0]?.day_number || 0}`, icon: "📅", color: "var(--accent)" },
     { label: "Score",    value: user.score,      icon: "🎯", color: "var(--gold)" },
     { label: "Streak",   value: `${user.streak}🔥`, icon: "", color: "var(--warn)" },
-    { label: "Reviewed", value: "3 tasks",       icon: "✅", color: "var(--success)" },
+    { label: "Reviewed", value: `${todaySubmissions.filter((s) => s.status === "reviewed").length} tasks`, icon: "✅", color: "var(--success)" },
   ];
 
   return (
@@ -697,7 +767,7 @@ const StudentDashboard = ({ user }) => {
         <div className="playfair" style={{ fontSize: 26, fontWeight: 700 }}>
           Good morning, {user.name.split(" ")[0]} 👋
         </div>
-        <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 4 }}>You're on Day 14 of your 60-day plan. Keep going!</p>
+        <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 4 }}>Today's tasks and feedback are loaded from your active plan.</p>
       </div>
 
       {/* Stats row */}
@@ -721,10 +791,10 @@ const StudentDashboard = ({ user }) => {
         </div>
         <ProgressBar pct={pct} />
         <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-          {MOCK_TASKS.map(t => (
+          {todayTasks.map((t) => (
             <div key={t.id} style={{
               width: 32, height: 6, borderRadius: 99,
-              background: t.status !== "pending" ? "var(--success)" : "var(--border)"
+              background: "var(--success)"
             }} />
           ))}
         </div>
@@ -733,13 +803,13 @@ const StudentDashboard = ({ user }) => {
       {/* Recent feedback */}
       <Card className="fade-up-4">
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Recent Feedback 💬</div>
-        {MOCK_SUBMISSIONS.filter(s => s.feedback).slice(0, 2).map(s => (
+        {submissions.filter((s) => s.feedback_text).slice(0, 2).map((s) => (
           <div key={s.id} style={{ padding: "12px 14px", background: "var(--bg3)", borderRadius: 10, marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{s.taskTitle}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Task #{s.task_id}</span>
               <StatusBadge status={s.status} />
             </div>
-            <p style={{ fontSize: 12, color: "var(--muted)" }}>{s.feedback}</p>
+            <p style={{ fontSize: 12, color: "var(--muted)" }}>{s.feedback_text}</p>
           </div>
         ))}
       </Card>
@@ -751,11 +821,27 @@ const StudentDashboard = ({ user }) => {
 // TASKS PAGE (DYNAMIC)
 // ─────────────────────────────────────────────
 const TasksPage = ({ user }) => {
-  const [day] = useState(14);
-  const [tasks, setTasks] = useState(() => generateTasksForDay(user, day));
+  const [day, setDay] = useState(0);
+  const [tasks, setTasks] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
 
-  const completed = tasks.filter(t => t.status !== "pending").length;
-  const pct = Math.round((completed / tasks.length) * 100);
+  useEffect(() => {
+    Promise.all([tasksAPI.getToday(), submissionsAPI.getStudentSubs(user.id)])
+      .then(([taskRes, submissionRes]) => {
+        setDay(taskRes?.day || 0);
+        setTasks(taskRes?.tasks || []);
+        setSubmissions(submissionRes || []);
+      })
+      .catch(() => {
+        setDay(0);
+        setTasks([]);
+        setSubmissions([]);
+      });
+  }, [user.id]);
+
+  const completedTaskIds = new Set(submissions.map((submission) => submission.task_id));
+  const completed = tasks.filter((task) => completedTaskIds.has(task.id)).length;
+  const pct = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
 
   const handleSubmit = (id) => {
     setTasks(ts => ts.map(t => t.id === id ? { ...t, status: "submitted" } : t));
@@ -764,7 +850,7 @@ const TasksPage = ({ user }) => {
   return (
     <div>
       <div className="fade-up" style={{ marginBottom: 20 }}>
-        <div className="playfair" style={{ fontSize: 22, fontWeight: 700 }}>Day {day} Tasks</div>
+        <div className="playfair" style={{ fontSize: 22, fontWeight: 700 }}>Day {day || "Today"} Tasks</div>
         <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>Complete all tasks to maintain your streak</p>
       </div>
 
@@ -786,8 +872,15 @@ const TasksPage = ({ user }) => {
 // ─────────────────────────────────────────────
 // SPEAKING PAGE
 // ─────────────────────────────────────────────
-const SpeakingPage = () => {
-  const subs = MOCK_SUBMISSIONS.filter(s => s.type === "speaking");
+const SpeakingPage = ({ user }) => {
+  const [subs, setSubs] = useState([]);
+
+  useEffect(() => {
+    submissionsAPI.getStudentSubs(user.id)
+      .then((res) => setSubs((res || []).filter((s) => s.task?.type === "speaking" || s.type === "speaking")))
+      .catch(() => setSubs([]));
+  }, [user.id]);
+
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Speaking Submissions</div>
@@ -795,19 +888,19 @@ const SpeakingPage = () => {
         <Card key={s.id} className="fade-up-2" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div style={{ fontWeight: 600 }}>{s.taskTitle}</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{s.date}</div>
+              <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{new Date(s.submitted_at).toLocaleString()}</div>
             </div>
             <StatusBadge status={s.status} />
           </div>
-          {s.feedback && (
+          {s.feedback_text && (
             <div style={{ marginTop: 14, padding: 14, background: "rgba(34,197,94,.06)", borderRadius: 10, fontSize: 13, color: "var(--muted)" }}>
               <span style={{ color: "var(--success)", fontWeight: 600, display: "block", marginBottom: 4 }}>Teacher Feedback</span>
-              {s.feedback}
+              {s.feedback_text}
             </div>
           )}
           <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-            <Btn size="sm" variant="outline">▶ Play Recording</Btn>
+            {s.file_url ? <a href={s.file_url} target="_blank" rel="noreferrer"><Btn size="sm" variant="outline">▶ Play Recording</Btn></a> : null}
           </div>
         </Card>
       ))}
@@ -845,11 +938,17 @@ const analyzeWriting = (text) => {
   };
 };
 
-const WritingPage = () => {
+const WritingPage = ({ user }) => {
   const [text, setText] = useState("");
   const [grammarResult, setGrammarResult] = useState(null);
   const [checking, setChecking] = useState(false);
-  const subs = MOCK_SUBMISSIONS.filter(s => s.type === "writing");
+  const [subs, setSubs] = useState([]);
+
+  useEffect(() => {
+    submissionsAPI.getStudentSubs(user.id)
+      .then((res) => setSubs((res || []).filter((s) => s.task?.type === "writing" || s.type === "writing")))
+      .catch(() => setSubs([]));
+  }, [user.id]);
   const words = text.split(/\s+/).filter(Boolean).length;
 
   const checkGrammar = () => {
@@ -1010,6 +1109,161 @@ const ProgressPage = ({ user }) => {
           ))}
         </div>
       </Card>
+
+      <Card className="fade-up-3">
+        <div style={{ fontWeight: 600, marginBottom: 14 }}>Your Writing History</div>
+        {subs.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>No writing submissions yet.</div>
+        ) : subs.map((s) => (
+          <div key={s.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
+              <StatusBadge status={s.status} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>{new Date(s.submitted_at).toLocaleString()}</div>
+            {s.feedback_text && <div style={{ marginTop: 8, fontSize: 13, color: "var(--text)" }}>{s.feedback_text}</div>}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// STUDENT – PLANS & ENROLLMENT
+// ─────────────────────────────────────────────
+const StudentPlansPage = () => {
+  const [plans, setPlans] = useState([]);
+  const [activePlanId, setActivePlanId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [allPlans, mine] = await Promise.all([plansAPI.getAll(), plansAPI.getMy()]);
+      setPlans(allPlans || []);
+      setActivePlanId(mine?.active_plan?.plan_id || null);
+    } catch (e) {
+      setMsg(e.message || "Failed to load plans");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const choosePlan = async (planId) => {
+    try {
+      setMsg("");
+      await plansAPI.select(planId);
+      setActivePlanId(planId);
+      setMsg("Plan selected. Notification email sent to srsurajith@gmail.com.");
+    } catch (e) {
+      setMsg(e.message || "Plan selection failed");
+    }
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Choose Your Training Plan</div>
+      <p className="fade-up-2" style={{ color: "var(--muted)", marginBottom: 20 }}>
+        Solo plans include 1:1 coaching every 2 days. Group plans require attendance from all enrolled members every 2 days.
+      </p>
+
+      {msg && <Card style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.35)", background: "rgba(20,108,114,.08)" }}>{msg}</Card>}
+
+      {loading ? <Spinner /> : (
+        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
+          {plans.map((p) => (
+            <Card key={p.id} className="fade-up-3" style={{ border: activePlanId === p.id ? "2px solid var(--accent)" : "1px solid var(--border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="playfair" style={{ fontSize: 18, fontWeight: 700 }}>{p.name}</div>
+                <Badge label={`${p.duration_days} days`} color="accent" />
+              </div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Mode: {p.session_type}</div>
+              <div style={{ fontSize: 13, color: "var(--text)", minHeight: 64 }}>{p.description || "Structured IELTS roadmap with speaking, writing, reading, and listening."}</div>
+              <div style={{ marginTop: 12 }}>
+                <Btn onClick={() => choosePlan(p.id)} disabled={activePlanId === p.id} style={{ width: "100%" }}>
+                  {activePlanId === p.id ? "Current Plan" : "Choose Plan"}
+                </Btn>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// STUDENT – GAMES ARENA
+// ─────────────────────────────────────────────
+const GamesArenaPage = () => {
+  const quiz = [
+    { q: "Choose the best connector: 'The train was late, ___ we still arrived on time.'", a: ["however", "although", "because"], c: 0 },
+    { q: "Identify the noun phrase: 'The rapid growth of online classes'", a: ["rapid growth", "online", "classes"], c: 0 },
+    { q: "Pick the formal alternative to 'kids'.", a: ["children", "buddies", "teens"], c: 0 },
+    { q: "Which sentence is more concise?", a: ["Due to the fact that it rained,", "Because it rained,"], c: 1 },
+  ];
+
+  const [idx, setIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const current = quiz[idx];
+
+  const pick = (optIdx) => {
+    if (answered) return;
+    setSelected(optIdx);
+    setAnswered(true);
+    if (optIdx === current.c) setScore((s) => s + 1);
+  };
+
+  const next = () => {
+    setAnswered(false);
+    setSelected(null);
+    setIdx((i) => (i + 1) % quiz.length);
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>IELTS Games Arena</div>
+      <p className="fade-up-2" style={{ color: "var(--muted)", marginBottom: 16 }}>Build grammar, vocabulary, and concise writing reflexes with fast drills.</p>
+
+      <Card className="fade-up-3" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700 }}>Quick Drill</div>
+          <Badge label={`Score ${score}/${quiz.length}`} color="success" />
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{current.q}</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {current.a.map((opt, i) => {
+            const isCorrect = answered && i === current.c;
+            const isWrong = answered && selected === i && i !== current.c;
+            return (
+              <button
+                key={i}
+                onClick={() => pick(i)}
+                style={{
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${isCorrect ? "var(--success)" : isWrong ? "var(--danger)" : "var(--border)"}`,
+                  background: isCorrect ? "rgba(47,133,90,.12)" : isWrong ? "rgba(197,48,48,.1)" : "var(--bg3)",
+                  color: "var(--text)",
+                  fontSize: 13,
+                  cursor: "pointer"
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 12 }}><Btn onClick={next} variant="outline">Next Drill</Btn></div>
+      </Card>
     </div>
   );
 };
@@ -1017,10 +1271,66 @@ const ProgressPage = ({ user }) => {
 // ─────────────────────────────────────────────
 // MOCK TEST PAGE
 // ─────────────────────────────────────────────
+const MOCK_TEST_BANK = {
+  writing: {
+    title: "Writing Task 2: Public Space Priority",
+    duration: 40,
+    wordTarget: 250,
+    prompt: "Some people argue that city budgets should prioritize public parks and libraries rather than sports arenas. Discuss both views and give your opinion.",
+    checklist: [
+      "State your position clearly in the introduction.",
+      "Use one paragraph per main argument.",
+      "Support each argument with a practical example.",
+      "Write a short conclusion that reinforces your view."
+    ]
+  },
+  reading: {
+    title: "Reading Passage: The Night Shift Effect",
+    duration: 20,
+    prompt: "A workplace study tracked 600 hospital employees over eight years. Researchers found that workers on rotating shifts reported lower sleep quality and higher stress. However, teams with predictable rosters and recovery days showed better concentration scores. The report recommends fixed schedules, mandatory quiet rooms, and hydration reminders during overnight hours.",
+    checklist: [
+      "TRUE/FALSE: The study lasted fewer than five years.",
+      "TRUE/FALSE: Predictable rosters improved concentration.",
+      "Choose TWO recommendations from the passage.",
+      "Write a one-sentence summary in your own words."
+    ]
+  },
+  listening: {
+    title: "Listening Notes: Campus Orientation",
+    duration: 15,
+    prompt: "You hear a student advisor explain orientation week. New students must collect ID cards before Wednesday, register for workshops online, and join one study group session. The library tour starts at 11:30, while language support appointments open on Friday.",
+    checklist: [
+      "What must be collected before Wednesday?",
+      "How should workshops be registered?",
+      "At what time does the library tour begin?",
+      "On which day do language appointments open?"
+    ]
+  },
+  speaking: {
+    title: "Speaking Part 2: A Skill You Learned",
+    duration: 10,
+    prompt: "Describe a skill you learned recently. You should say when you started learning it, what challenges you faced, how you practiced, and why it is useful for your future.",
+    checklist: [
+      "Speak for 1 to 2 minutes.",
+      "Use specific examples instead of general statements.",
+      "Include one difficulty and how you solved it.",
+      "Finish with a future goal."
+    ]
+  }
+};
+
 const MockTestPage = () => {
-  const [timeLeft, setTimeLeft] = useState(1800); // 30 min
+  const [activeSkill, setActiveSkill] = useState("writing");
+  const skill = MOCK_TEST_BANK[activeSkill];
+  const [timeLeft, setTimeLeft] = useState(skill.duration * 60);
   const [testText, setTestText] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    setTimeLeft(skill.duration * 60);
+    setSubmitted(false);
+    setTestText("");
+  }, [activeSkill, skill.duration]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -1039,32 +1349,53 @@ const MockTestPage = () => {
   }, []);
 
   const format = (s) => `${Math.floor(s/60)}:${String(s % 60).padStart(2, "0")}`;
+  const words = testText.split(/\s+/).filter(Boolean).length;
+  const requiresEssay = activeSkill === "writing";
+  const minWords = requiresEssay ? skill.wordTarget : 40;
+  const readyToSubmit = words >= minWords;
 
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>
-        Mock Test Mode
+        Mock Test Studio
       </div>
 
-      <Card className="fade-up-2" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(239,68,68,.12),rgba(245,158,11,.08))", border: "1px solid rgba(239,68,68,.2)" }}>
+      <div className="fade-up-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {Object.keys(MOCK_TEST_BANK).map((k) => (
+          <Btn
+            key={k}
+            size="sm"
+            variant={activeSkill === k ? "primary" : "outline"}
+            onClick={() => setActiveSkill(k)}
+          >
+            {k[0].toUpperCase() + k.slice(1)}
+          </Btn>
+        ))}
+      </div>
+
+      <Card className="fade-up-3" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(20,108,114,.12),rgba(214,148,41,.10))", border: "1px solid rgba(20,108,114,.2)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>Time Remaining</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>{skill.title}</div>
             <div className="playfair" style={{ fontSize: 36, fontWeight: 700, color: timeLeft < 300 ? "var(--danger)" : "var(--warn)", fontVariantNumeric: "tabular-nums" }}>
               {format(timeLeft)}
             </div>
           </div>
-          <ProgressRing pct={Math.round((timeLeft / 1800) * 100)} size={100} color={timeLeft < 300 ? "var(--danger)" : "var(--warn)"} />
+          <ProgressRing pct={Math.round((timeLeft / (skill.duration * 60)) * 100)} size={100} color={timeLeft < 120 ? "var(--danger)" : "var(--accent)"} />
         </div>
       </Card>
 
-      <Card className="fade-up-3">
-        <div style={{ fontWeight: 600, marginBottom: 14 }}>
-          Writing Task 1: Report Composition
-        </div>
+      <Card className="fade-up-4">
+        <div style={{ fontWeight: 700, marginBottom: 14 }}>{skill.title}</div>
         <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
-          The chart shows electricity production in France between 1980–2012. Summarize the information in at least 150 words.
+          {skill.prompt}
         </p>
+        <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "rgba(20,108,114,.08)", border: "1px solid rgba(20,108,114,.2)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Checklist</div>
+          {skill.checklist.map((item, idx) => (
+            <div key={idx} style={{ fontSize: 12, color: "var(--text)", marginBottom: 5 }}>• {item}</div>
+          ))}
+        </div>
         <textarea
           value={testText}
           onChange={e => setTestText(e.target.value)}
@@ -1078,9 +1409,9 @@ const MockTestPage = () => {
         />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
           <span style={{ fontSize: 12, color: "var(--muted)" }}>
-            {testText.split(/\s+/).filter(Boolean).length} words
+            {words} words {readyToSubmit ? "✓" : `(${Math.max(minWords - words, 0)} more)`}
           </span>
-          <Btn onClick={() => setSubmitted(true)} disabled={submitted || testText.trim().length < 150}>
+          <Btn onClick={() => setSubmitted(true)} disabled={submitted || !readyToSubmit}>
             {submitted ? "✓ Submitted" : "Submit Test"}
           </Btn>
         </div>
@@ -1093,13 +1424,24 @@ const MockTestPage = () => {
 // LEADERBOARD PAGE
 // ─────────────────────────────────────────────
 const LeaderboardPage = () => {
-  const leaderboardData = [
-    { rank: 1, name: "Arjun Kumar", points: 120, streak: 7, score: 68 },
-    { rank: 2, name: "Priya Sharma", points: 110, streak: 12, score: 72 },
-    { rank: 3, name: "Ravi Menon", points: 95, streak: 2, score: 61 },
-    { rank: 4, name: "Anjali Singh", points: 85, streak: 5, score: 65 },
-    { rank: 5, name: "Rohan Das", points: 78, streak: 3, score: 59 },
-  ];
+  const [leaderboardData, setLeaderboardData] = useState([]);
+
+  useEffect(() => {
+    usersAPI.getStudents()
+      .then((res) => {
+        const ranked = (res || [])
+          .map((u) => ({
+            name: u.name,
+            streak: u.streak || 0,
+            score: u.score || 0,
+            points: Math.round((u.score || 0) * 10 + (u.streak || 0) * 4),
+          }))
+          .sort((a, b) => b.points - a.points)
+          .map((u, index) => ({ ...u, rank: index + 1 }));
+        setLeaderboardData(ranked);
+      })
+      .catch(() => setLeaderboardData([]));
+  }, []);
 
   return (
     <div>
@@ -1150,65 +1492,98 @@ const LeaderboardPage = () => {
 // ─────────────────────────────────────────────
 // LIVE CLASS PAGE
 // ─────────────────────────────────────────────
-const LiveClassPage = ({ user }) => (
-  <div>
-    <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Live Classes 🎥</div>
+const LiveClassPage = ({ user }) => {
+  const [activePlan, setActivePlan] = useState(null);
 
-    <Card className="fade-up-2" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(79,142,247,.1),rgba(124,58,237,.06))", border: "1px solid rgba(79,142,247,.2)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: 12, background: "var(--accent)",
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22
-        }}>🎥</div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 16 }}>IELTS Batch – May 2025</div>
-          <div style={{ fontSize: 13, color: "var(--muted)" }}>Every Mon, Wed, Fri · 7:00 PM IST</div>
-        </div>
-        <div style={{ marginLeft: "auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success)" }} />
-            <span style={{ fontSize: 12, color: "var(--success)" }}>Next: Today 7 PM</span>
-          </div>
-        </div>
-      </div>
-      <a href={user.zoom || "#"} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-        <button style={{
-          background: "#2D8CFF", color: "#fff", padding: "12px 28px", borderRadius: 10,
-          fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer", width: "100%"
-        }}>
-          📹 Join Live Class on Zoom
-        </button>
-      </a>
-    </Card>
+  useEffect(() => {
+    plansAPI.getMy().then((res) => setActivePlan(res?.active_plan?.plan || null)).catch(() => setActivePlan(null));
+  }, []);
 
-    <Card className="fade-up-3">
-      <div style={{ fontWeight: 600, marginBottom: 14 }}>Upcoming Sessions</div>
-      {[
-        { date: "Mon, May 5", time: "7:00 PM", topic: "Writing Task 2 – Opinion Essays" },
-        { date: "Wed, May 7", time: "7:00 PM", topic: "Speaking Part 2 – Cue Card Practice" },
-        { date: "Fri, May 9", time: "7:00 PM", topic: "Listening – Multiple Choice" },
-      ].map((s, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: i < 2 ? "1px solid var(--border)" : "none" }}>
+  const meetingMode = activePlan?.session_type === "group" ? "Group" : "Solo";
+  const cadenceText = "Every 2 days";
+  const meetingLink = user.zoom_link || `https://meet.jit.si/ielts-${user.id}-session`;
+  const topics = [
+    "Speaking Band Boost Lab",
+    "Writing Structure Clinic",
+    "Reading Speed and Accuracy",
+    "Listening Trap Questions"
+  ];
+  const upcoming = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i * 2);
+    return {
+      date: d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+      time: "7:00 PM",
+      topic: topics[i % topics.length]
+    };
+  });
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Live Sessions 🎥</div>
+
+      <Card className="fade-up-2" style={{ marginBottom: 20, background: "linear-gradient(135deg,rgba(20,108,114,.12),rgba(214,148,41,.08))", border: "1px solid rgba(20,108,114,.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎥</div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{s.topic}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{s.date} · {s.time}</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{activePlan?.name || "No plan selected yet"}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>{meetingMode} training · {cadenceText}</div>
           </div>
-          <Btn size="sm" variant="outline">Remind Me</Btn>
+          <div style={{ marginLeft: "auto", fontSize: 12, color: "var(--muted)" }}>
+            {meetingMode === "Group" ? "All users in this plan are requested to join each session." : "1:1 session with teacher."}
+          </div>
         </div>
-      ))}
-    </Card>
-  </div>
-);
+        <a href={meetingLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+          <button style={{ background: "#2D8CFF", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer", width: "100%" }}>
+            Join Live Meeting Room
+          </button>
+        </a>
+      </Card>
+
+      <Card className="fade-up-3">
+        <div style={{ fontWeight: 600, marginBottom: 14 }}>Upcoming Sessions</div>
+        {upcoming.map((s, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: i < upcoming.length - 1 ? "1px solid var(--border)" : "none" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{s.topic}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{s.date} · {s.time}</div>
+            </div>
+            <Btn size="sm" variant="outline">Remind Me</Btn>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
 
 // ─────────────────────────────────────────────
 // ADMIN – OVERVIEW
 // ─────────────────────────────────────────────
 const AdminHome = () => {
+  const [students, setStudents] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [pending, setPending] = useState([]);
+
+  useEffect(() => {
+    Promise.all([usersAPI.getStudents(), plansAPI.getAll(), submissionsAPI.getPending()])
+      .then(([s, p, pend]) => {
+        setStudents(s || []);
+        setPlans(p || []);
+        setPending(pend || []);
+      })
+      .catch(() => {
+        setStudents([]);
+        setPlans([]);
+        setPending([]);
+      });
+  }, []);
+
+  const avgScore = students.length ? Math.round(students.reduce((acc, s) => acc + (s.score || 0), 0) / students.length) : 0;
   const stats = [
-    { label: "Total Students", value: 3,    icon: "👥", color: "var(--accent)" },
-    { label: "Active Plans",   value: 2,    icon: "📋", color: "var(--success)" },
-    { label: "Pending Review", value: 4,    icon: "🔍", color: "var(--warn)" },
-    { label: "Avg Score",      value: "67", icon: "🎯", color: "var(--gold)" },
+    { label: "Total Students", value: students.length, icon: "👥", color: "var(--accent)" },
+    { label: "Active Plans", value: plans.length, icon: "📋", color: "var(--success)" },
+    { label: "Pending Review", value: pending.length, icon: "🔍", color: "var(--warn)" },
+    { label: "Avg Score", value: avgScore, icon: "🎯", color: "var(--gold)" },
   ];
   return (
     <div>
@@ -1227,7 +1602,7 @@ const AdminHome = () => {
 
       <Card className="fade-up-3">
         <div style={{ fontWeight: 600, marginBottom: 14 }}>Students at a Glance</div>
-        {MOCK_STUDENTS.map(s => (
+        {students.map(s => (
           <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
             <div style={{
               width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,var(--accent),var(--accent2))",
@@ -1235,12 +1610,9 @@ const AdminHome = () => {
             }}>{s.name[0]}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.plan}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.email}</div>
             </div>
-            <div style={{ width: 100 }}>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.progress}%</div>
-              <ProgressBar pct={s.progress} height={5} />
-            </div>
+            <div style={{ width: 100, fontSize: 11, color: "var(--muted)" }}>🔥 {s.streak || 0} streak</div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)" }}>{s.score}</div>
               <div style={{ fontSize: 10, color: "var(--muted)" }}>Est. score</div>
@@ -1256,15 +1628,31 @@ const AdminHome = () => {
 // ADMIN – STUDENTS
 // ─────────────────────────────────────────────
 const AdminStudents = () => {
+  const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
   const [tag, setTag] = useState("");
+
+  useEffect(() => {
+    usersAPI.getStudents().then((res) => setStudents(res || [])).catch(() => setStudents([]));
+  }, []);
+
+  const addWeakArea = async () => {
+    if (!selected || !tag.trim()) return;
+    const existing = selected.weak_areas || [];
+    const merged = Array.from(new Set([...existing, tag.trim()]));
+    await usersAPI.update(selected.id, { weak_areas: merged.join(',') });
+    const refreshed = await usersAPI.getStudents();
+    setStudents(refreshed || []);
+    setSelected((refreshed || []).find((u) => u.id === selected.id) || null);
+    setTag("");
+  };
 
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Students</div>
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: selected ? "1fr 1fr" : "1fr" }}>
         <div>
-          {MOCK_STUDENTS.map(s => (
+          {students.map(s => (
             <Card key={s.id} style={{ marginBottom: 14, cursor: "pointer", border: selected?.id === s.id ? "1px solid var(--accent)" : "1px solid var(--border)" }}
               onClick={() => setSelected(s)}>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -1278,16 +1666,12 @@ const AdminStudents = () => {
                   <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.email}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.plan}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.role}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, justifyContent: "flex-end" }}>
                     <span style={{ fontSize: 12 }}>🔥 {s.streak}</span>
                     <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>Score: {s.score}</span>
                   </div>
                 </div>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <ProgressBar pct={s.progress} />
-                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>{s.progress}% complete</div>
               </div>
             </Card>
           ))}
@@ -1303,7 +1687,7 @@ const AdminStudents = () => {
               {[
                 { l: "Score", v: selected.score, c: "var(--gold)" },
                 { l: "Streak", v: `${selected.streak}🔥`, c: "var(--warn)" },
-                { l: "Progress", v: `${selected.progress}%`, c: "var(--accent)" },
+                  { l: "Role", v: selected.role, c: "var(--accent)" },
               ].map((s, i) => (
                 <div key={i} style={{ flex: 1, minWidth: 80, textAlign: "center", background: "var(--bg3)", borderRadius: 10, padding: "12px 8px" }}>
                   <div style={{ fontWeight: 700, color: s.c }}>{s.v}</div>
@@ -1314,7 +1698,7 @@ const AdminStudents = () => {
 
             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Weak Areas</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-              {selected.weakAreas.map((w, i) => <Badge key={i} label={w} color="danger" />)}
+              {(selected.weak_areas || []).map((w, i) => <Badge key={i} label={w} color="danger" />)}
             </div>
 
             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Add Weak Area Tag</div>
@@ -1323,7 +1707,7 @@ const AdminStudents = () => {
                 flex: 1, background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 8,
                 padding: "8px 12px", color: "var(--text)", fontSize: 13, outline: "none"
               }} />
-              <Btn size="sm" onClick={() => tag && setTag("")}>Add</Btn>
+              <Btn size="sm" onClick={addWeakArea}>Add</Btn>
             </div>
 
             <div style={{ marginTop: 16 }}>
@@ -1340,9 +1724,34 @@ const AdminStudents = () => {
 // ADMIN – PLANS
 // ─────────────────────────────────────────────
 const AdminPlans = () => {
+  const [plans, setPlans] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [planName, setPlanName] = useState("");
   const [planDays, setPlanDays] = useState(60);
+  const [sessionType, setSessionType] = useState("solo");
+  const [description, setDescription] = useState("");
+
+  const refreshPlans = async () => {
+    const res = await plansAPI.getAll();
+    setPlans(res || []);
+  };
+
+  useEffect(() => { refreshPlans().catch(() => setPlans([])); }, []);
+
+  const createNewPlan = async () => {
+    await plansAPI.create({
+      name: planName,
+      duration_days: Number(planDays),
+      session_type: sessionType,
+      description,
+    });
+    setShowNew(false);
+    setPlanName("");
+    setPlanDays(60);
+    setSessionType("solo");
+    setDescription("");
+    await refreshPlans();
+  };
 
   const inp = {
     width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10,
@@ -1368,8 +1777,19 @@ const AdminPlans = () => {
               <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Duration (days)</label>
               <input style={inp} type="number" value={planDays} onChange={e => setPlanDays(e.target.value)} />
             </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Session Type</label>
+              <select style={inp} value={sessionType} onChange={e => setSessionType(e.target.value)}>
+                <option value="solo">solo</option>
+                <option value="group">group</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Description / Pricing</label>
+              <textarea rows={3} style={inp} value={description} onChange={e => setDescription(e.target.value)} placeholder="INR 10000 for 60 days, every 2 days session" />
+            </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn>Create Plan</Btn>
+              <Btn onClick={createNewPlan} disabled={!planName.trim()}>Create Plan</Btn>
               <Btn variant="ghost" onClick={() => setShowNew(false)}>Cancel</Btn>
             </div>
           </div>
@@ -1377,19 +1797,17 @@ const AdminPlans = () => {
       )}
 
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
-        {MOCK_PLANS.map(p => (
+        {plans.map(p => (
           <Card key={p.id} className="fade-up-2">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
               <div className="playfair" style={{ fontSize: 17, fontWeight: 600 }}>{p.name}</div>
-              <Badge label={`${p.days} days`} color="accent" />
+              <Badge label={`${p.duration_days} days`} color="accent" />
             </div>
-            <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>👥 {p.students} students</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>✓ {p.tasks_per_day} tasks/day</div>
-            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Mode: {p.session_type}</div>
+            <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 14 }}>{p.description}</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn size="sm">Edit Tasks</Btn>
-              <Btn size="sm" variant="outline">Assign</Btn>
+              <Btn size="sm" variant="outline">Configure Tasks</Btn>
+              <Btn size="sm">Assign</Btn>
             </div>
           </Card>
         ))}
@@ -1404,13 +1822,28 @@ const AdminPlans = () => {
 const AdminReview = () => {
   const [selected, setSelected] = useState(null);
   const [feedback, setFeedback] = useState("");
+  const [feedbackFile, setFeedbackFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const pending = MOCK_SUBMISSIONS.filter(s => s.status === "submitted");
+  const [pending, setPending] = useState([]);
 
-  const saveFeedback = () => {
+  useEffect(() => {
+    submissionsAPI.getPending().then((res) => setPending(res || [])).catch(() => setPending([]));
+  }, []);
+
+  const saveFeedback = async () => {
+    if (!selected) return;
     setSaving(true);
-    setTimeout(() => { setSaving(false); setSelected(null); setFeedback(""); }, 900);
+    try {
+      await feedbackAPI.create(selected.id, feedback, feedbackFile);
+      const refreshed = await submissionsAPI.getPending();
+      setPending(refreshed || []);
+      setSelected(null);
+      setFeedback("");
+      setFeedbackFile(null);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1420,16 +1853,16 @@ const AdminReview = () => {
 
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: selected ? "1fr 1fr" : "1fr" }}>
         <div>
-          {MOCK_SUBMISSIONS.map(s => (
+          {pending.map((s) => (
             <Card key={s.id} className="fade-up-3" style={{ marginBottom: 14, cursor: "pointer", border: selected?.id === s.id ? "1px solid var(--accent)" : "1px solid var(--border)" }}
-              onClick={() => { setSelected(s); setFeedback(s.feedback || ""); }}>
+              onClick={() => { setSelected(s); setFeedback(s.feedback_text || ""); setFeedbackFile(null); }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <div style={{ fontWeight: 600 }}>{s.taskTitle}</div>
+                <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
                 <StatusBadge status={s.status} />
               </div>
               <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--muted)" }}>
-                <span>📅 {s.date}</span>
-                <TaskTypeBadge type={s.type} />
+                <span>📅 {new Date(s.submitted_at).toLocaleString()}</span>
+                <TaskTypeBadge type={s.task?.type || "writing"} />
               </div>
             </Card>
           ))}
@@ -1442,10 +1875,10 @@ const AdminReview = () => {
               <button onClick={() => setSelected(null)} style={{ background: "none", color: "var(--muted)", fontSize: 18 }}>✕</button>
             </div>
             <div style={{ padding: 12, background: "var(--bg3)", borderRadius: 10, marginBottom: 14 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{selected.taskTitle}</div>
-              <div style={{ display: "flex", gap: 8 }}><TaskTypeBadge type={selected.type} /><StatusBadge status={selected.status} /></div>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Task #{selected.task_id}</div>
+              <div style={{ display: "flex", gap: 8 }}><TaskTypeBadge type={selected.task?.type || "writing"} /><StatusBadge status={selected.status} /></div>
             </div>
-            {selected.type === "speaking" && (
+            {(selected.task?.type || selected.type) === "speaking" && (
               <div style={{ marginBottom: 14 }}>
                 <Btn size="sm" variant="outline">▶ Play Student Recording</Btn>
               </div>
@@ -1461,7 +1894,7 @@ const AdminReview = () => {
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Audio Feedback</label>
-              <input type="file" accept="audio/*" style={{ fontSize: 13, color: "var(--muted)" }} />
+              <input type="file" accept="audio/*" style={{ fontSize: 13, color: "var(--muted)" }} onChange={(e) => setFeedbackFile(e.target.files?.[0] || null)} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn onClick={saveFeedback} disabled={saving}>
@@ -1481,11 +1914,39 @@ const AdminReview = () => {
 // ─────────────────────────────────────────────
 const AdminTasks = () => {
   const [day, setDay] = useState(1);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    plansAPI.getAll()
+      .then((res) => {
+        const loadedPlans = res || [];
+        setPlans(loadedPlans);
+        if (!selectedPlan && loadedPlans.length) setSelectedPlan(loadedPlans[0].id);
+      })
+      .catch(() => setPlans([]));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPlan) return;
+    apiCall(`/tasks/plan/${selectedPlan}/day/${day}`)
+      .then((res) => setTasks(res?.tasks || []))
+      .catch(() => setTasks([]));
+  }, [selectedPlan, day]);
+
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Task Editor</div>
       <Card className="fade-up-2" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>Select Day</div>
+        <div style={{ fontWeight: 600, marginBottom: 12 }}>Select Plan and Day</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          {plans.map((plan) => (
+            <Btn key={plan.id} size="sm" variant={selectedPlan === plan.id ? "primary" : "outline"} onClick={() => setSelectedPlan(plan.id)}>
+              {plan.name}
+            </Btn>
+          ))}
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[1, 2, 3, 4, 5, 6, 7].map(d => (
             <button key={d} onClick={() => setDay(d)} style={{
@@ -1500,7 +1961,7 @@ const AdminTasks = () => {
       </Card>
 
       <div className="fade-up-3">
-        {MOCK_TASKS.map(t => (
+        {tasks.map((t) => (
           <Card key={t.id} style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -1541,11 +2002,13 @@ export default function App() {
 
   const studentPages = {
     dashboard: <StudentDashboard user={user} />,
+    plans:     <StudentPlansPage user={user} />,
     tasks:     <TasksPage user={user} />,
-    speaking:  <SpeakingPage />,
-    writing:   <WritingPage />,
+    speaking:  <SpeakingPage user={user} />,
+    writing:   <WritingPage user={user} />,
     progress:  <ProgressPage user={user} />,
     mocktest:  <MockTestPage />,
+    games:     <GamesArenaPage />,
     leaderboard: <LeaderboardPage />,
     liveclass: <LiveClassPage user={user} />,
   };

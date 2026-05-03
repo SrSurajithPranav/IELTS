@@ -24,7 +24,7 @@ def today_tasks():
       401:
         description: Unauthorized
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     sp = StudentPlan.query.filter_by(student_id=uid, is_active=True).first()
     if not sp:
         return jsonify({'tasks': [], 'day': 0})
@@ -51,11 +51,22 @@ def tasks_by_day(day):
       200:
         description: Tasks for the day
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     sp = StudentPlan.query.filter_by(student_id=uid, is_active=True).first()
     if not sp:
         return jsonify({'tasks': []})
     tasks = Task.query.filter_by(plan_id=sp.plan_id, day_number=day).all()
+    return jsonify({'tasks': [t.to_dict() for t in tasks]})
+
+@tasks_bp.route('/plan/<int:plan_id>/day/<int:day>', methods=['GET'])
+@jwt_required()
+def tasks_by_plan_and_day(plan_id, day):
+    """Get tasks for a specific plan and day (admin and teacher tools)."""
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    tasks = Task.query.filter_by(plan_id=plan_id, day_number=day).all()
     return jsonify({'tasks': [t.to_dict() for t in tasks]})
 
 @tasks_bp.route('/', methods=['POST'])
@@ -88,7 +99,7 @@ def create_task():
       403:
         description: Forbidden (Admin only)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
@@ -119,7 +130,7 @@ def manage_task(task_id):
       403:
         description: Forbidden (Admin only)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403

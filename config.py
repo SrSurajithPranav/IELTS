@@ -13,6 +13,18 @@ class Config:
     CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY')
     CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET')
 
+    # Login approval + email notifications
+    REQUIRE_LOGIN_APPROVAL = os.getenv('REQUIRE_LOGIN_APPROVAL', 'true').lower() == 'true'
+    ADMIN_APPROVER_EMAIL = os.getenv('ADMIN_APPROVER_EMAIL', 'srsurajith@gmail.com')
+    FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+    BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
+
+    SMTP_HOST = os.getenv('SMTP_HOST')
+    SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+    SMTP_USER = os.getenv('SMTP_USER')
+    SMTP_PASS = os.getenv('SMTP_PASS')
+    SMTP_FROM = os.getenv('SMTP_FROM', os.getenv('SMTP_USER', 'no-reply@ielts.local'))
+
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True

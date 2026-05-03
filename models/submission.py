@@ -19,6 +19,12 @@ class Submission(db.Model):
             'id': self.id,
             'student_id': self.student_id,
             'task_id': self.task_id,
+            'task': {
+                'id': self.task.id,
+                'type': self.task.type,
+                'title': self.task.title,
+                'day_number': self.task.day_number,
+            } if self.task else None,
             'content': self.content,
             'file_url': self.file_url,
             'status': self.status,

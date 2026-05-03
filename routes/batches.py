@@ -24,7 +24,7 @@ def batches():
       403:
         description: Forbidden (POST requires admin)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if request.method == 'GET':
         if user.role == 'admin':
@@ -68,7 +68,7 @@ def add_member(batch_id):
       403:
         description: Forbidden (Admin only)
     """
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
