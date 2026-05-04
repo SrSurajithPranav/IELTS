@@ -29,7 +29,9 @@ def create_session():
     if user.role != "admin":
         return jsonify({"error": "Admin only"}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    if not data.get("title"):
+        return jsonify({"error": "title is required"}), 400
     room_token = secrets.token_hex(4)
     room_name = f"{data.get('title', 'class').replace(' ','-')}-{room_token}"
 
@@ -72,7 +74,15 @@ def list_sessions():
 @sessions_bp.route("/<int:session_id>", methods=["GET"])
 @jwt_required()
 def get_session(session_id):
+    uid = get_jwt_identity()
+    user = User.query.get(uid)
     session = LiveSession.query.get_or_404(session_id)
+    if user.role != "admin":
+        from models.batch import BatchMember
+        batch_ids = [m.batch_id for m in BatchMember.query.filter_by(student_id=uid).all()]
+        allowed = session.student_id == uid or (session.batch_id in batch_ids if batch_ids else False)
+        if not allowed:
+            return jsonify({"error": "Forbidden"}), 403
     return jsonify(session.to_dict())
 
 
@@ -85,7 +95,9 @@ def add_recording(session_id):
     if user.role != "admin":
         return jsonify({"error": "Admin only"}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    if not data.get("url"):
+        return jsonify({"error": "url is required"}), 400
     rec = SessionRecording(
         session_id=session_id,
         title=data.get("title", "Session Recording"),

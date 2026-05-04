@@ -7,6 +7,7 @@ from models.db import db
 from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
 from models.user import User
+from utils.scraper import scrape_public_page
 
 quizzes_bp = Blueprint("quizzes", __name__, url_prefix="/api/quizzes")
 resources_bp = Blueprint("resources", __name__, url_prefix="/api/resources")
@@ -139,6 +140,93 @@ def create_resource():
     db.session.add(resource)
     db.session.commit()
     return jsonify(resource.to_dict()), 201
+
+
+@resources_bp.route("/scrape", methods=["POST"])
+@jwt_required()
+def scrape_resource():
+    uid = get_jwt_identity()
+    user = User.query.get(uid)
+    if user.role != "admin":
+        return jsonify({"error": "Admin only"}), 403
+
+    data = request.get_json() or {}
+    url = data.get("url")
+    category = data.get("category", "general")
+    resource_type = data.get("type", "link")
+    if not url:
+        return jsonify({"error": "url is required"}), 400
+
+    scraped = scrape_public_page(url)
+    resource = Resource.query.filter_by(url=url).first()
+    if resource:
+        resource.title = scraped["title"]
+        resource.description = scraped["description"]
+        resource.category = category
+        resource.type = resource_type
+    else:
+        resource = Resource(
+            title=scraped["title"],
+            category=category,
+            type=resource_type,
+            url=url,
+            description=scraped["description"],
+            uploaded_by=uid,
+        )
+        db.session.add(resource)
+    db.session.commit()
+
+    return jsonify({"resource": resource.to_dict(), "links": scraped["links"]}), 201
+
+
+@resources_bp.route("/scrape/seed", methods=["POST"])
+@jwt_required()
+def scrape_seed_resources():
+    uid = get_jwt_identity()
+    user = User.query.get(uid)
+    if user.role != "admin":
+        return jsonify({"error": "Admin only"}), 403
+
+    sources = [
+        {
+            "url": "https://www.ielts.org/for-test-takers/sample-test-questions",
+            "category": "general",
+            "type": "link",
+        },
+        {
+            "url": "https://ieltsliz.com/",
+            "category": "general",
+            "type": "link",
+        },
+    ]
+
+    imported = []
+    for source in sources:
+        try:
+            scraped = scrape_public_page(source["url"])
+        except Exception:
+            continue
+
+        resource = Resource.query.filter_by(url=source["url"]).first()
+        if resource:
+            resource.title = scraped["title"]
+            resource.description = scraped["description"]
+            resource.category = source["category"]
+            resource.type = source["type"]
+        else:
+            resource = Resource(
+                title=scraped["title"],
+                description=scraped["description"],
+                category=source["category"],
+                type=source["type"],
+                url=source["url"],
+                uploaded_by=uid,
+            )
+            db.session.add(resource)
+        imported.append(resource)
+
+    db.session.commit()
+    return jsonify({"imported": [r.to_dict() for r in imported]}), 201
 
 
 @resources_bp.route("/<int:resource_id>", methods=["DELETE"])

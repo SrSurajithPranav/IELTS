@@ -11,6 +11,12 @@ def send_email(subject, body, to_email, cfg):
     smtp_pass = cfg.get('SMTP_PASS')
     smtp_from = cfg.get('SMTP_FROM', smtp_user or 'no-reply@ielts.local')
 
+    if not to_email:
+        print("[EMAIL SKIPPED] Missing recipient")
+        print(f"Subject: {subject}")
+        print(body)
+        return False
+
     if not smtp_host or not smtp_user or not smtp_pass:
         # Development fallback: keep behavior observable in logs.
         print("[EMAIL SKIPPED] SMTP not configured")

@@ -67,7 +67,7 @@ import { useState, useEffect, useContext, createContext, useRef } from "react";
 // ─────────────────────────────────────────────
 // API CONFIGURATION
 // ─────────────────────────────────────────────
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "/api";
 const API_TIMEOUT = 10000;
 
 // Fetch with timeout
@@ -129,9 +129,10 @@ const submissionsAPI = {
     if (audioBlob) formData.append("audio", audioBlob, "recording.webm");
     
     const token = localStorage.getItem("jwt_token");
+    const hdrs = token ? { Authorization: `Bearer ${token}` } : {};
     return fetch(`${API_BASE_URL}/submissions`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: hdrs,
       body: formData
     }).then(r => r.json());
   },

@@ -1,0 +1,15 @@
+[app]
+  # Set the app name in Fly.io after creation (flyctl apps create <name>)
+  # Replace "ielts-app" with your chosen name
+  name = "ielts-app"
+
+[build]
+  image = ""
+
+[env]
+  # Example env vars to set via flyctl secrets set
+  DATABASE_URL = "postgres://user:pass@db-host:5432/dbname"
+  JWT_SECRET_KEY = "change-me-in-production"
+  ADMIN_APPROVER_EMAIL = "you@example.com"
+  FRONTEND_BASE_URL = "https://your-frontend.pages.dev"
+  BACKEND_BASE_URL = "https://your-backend.fly.dev"

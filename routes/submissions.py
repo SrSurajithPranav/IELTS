@@ -36,9 +36,13 @@ def submit():
         description: Submission created
     """
     uid = int(get_jwt_identity())
-    task_id = request.form.get('task_id') or request.get_json().get('task_id')
+    json_data = request.get_json(silent=True) or {}
+    task_id = request.form.get('task_id') or json_data.get('task_id')
     content = request.form.get('content', '')
     file_url = None
+
+    if not task_id:
+      return jsonify({'error': 'task_id is required'}), 400
 
     if 'audio' in request.files:
         file_url = upload_audio(request.files['audio'], folder='submissions')

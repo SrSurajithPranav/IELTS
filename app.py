@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flasgger import Flasgger
@@ -27,6 +27,7 @@ from routes.batches import batches_bp
 from routes.students import students_bp
 from routes.sessions import sessions_bp
 from routes.quizzes import quizzes_bp, resources_bp
+from routes.ai import ai_bp
 from models.session import LiveSession, SessionRecording
 from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
@@ -82,6 +83,13 @@ def create_app(config_name=None):
             }
         }
     )
+
+    @app.before_request
+    def normalize_authorization_header():
+        """Allow raw JWT token in Authorization header (Swagger convenience)."""
+        auth = request.headers.get('Authorization', '').strip()
+        if auth and not auth.lower().startswith('bearer '):
+            request.environ['HTTP_AUTHORIZATION'] = f'Bearer {auth}'
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -95,6 +103,7 @@ def create_app(config_name=None):
     app.register_blueprint(sessions_bp)
     app.register_blueprint(quizzes_bp)
     app.register_blueprint(resources_bp)
+    app.register_blueprint(ai_bp)
     
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
@@ -114,99 +123,41 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
 
-        # Keep the demo credentials stable in development so the frontend
-        # can always log in without requiring a separate seed step.
         if config_name == 'development':
             from models.user import User
 
-            demo_users = [
-                {
-                    'name': 'Arjun Kumar',
-                    'email': 'student1@gmail.com',
-                    'password': '123456',
-                    'role': 'student',
-                    'score': 68,
-                    'streak': 7,
-                    'weak_areas': 'Writing Task 1,Listening Section 3',
-                },
-                {
-                    'name': 'Priya Sharma',
-                    'email': 'student2@gmail.com',
-                    'password': '123456',
-                    'role': 'student',
-                    'score': 72,
-                    'streak': 12,
-                    'weak_areas': 'Speaking Part 3,Coherence',
-                },
-                {
-                    'name': 'Ravi Menon',
-                    'email': 'student3@gmail.com',
-                    'password': '123456',
-                    'role': 'student',
-                    'score': 61,
-                    'streak': 2,
-                    'weak_areas': 'Grammar,Vocabulary Range',
-                },
-                {
-                    'name': 'Anjali Singh',
-                    'email': 'student4@gmail.com',
-                    'password': '123456',
-                    'role': 'student',
-                    'score': 65,
-                    'streak': 5,
-                    'weak_areas': 'Reading Speed,True/False/Not Given',
-                },
-                {
-                    'name': 'Rohan Das',
-                    'email': 'student5@gmail.com',
-                    'password': '123456',
-                    'role': 'student',
-                    'score': 59,
-                    'streak': 3,
-                    'weak_areas': 'Task 2 Structure,Listening Distractors',
-                },
-                {
-                    'name': 'Surajith Pranav',
-                    'email': 'srsurajith@gmail.com',
-                    'password': 'admin123',
-                    'role': 'admin',
-                    'score': 0,
-                    'streak': 0,
-                    'weak_areas': '',
-                },
-                {
-                    'name': 'Admin User',
-                    'email': 'admin@gmail.com',
-                    'password': 'admin123',
-                    'role': 'admin',
-                    'score': 0,
-                    'streak': 0,
-                    'weak_areas': '',
-                },
-            ]
+            seeded_student_emails = {
+                'student1@gmail.com',
+                'student2@gmail.com',
+                'student3@gmail.com',
+                'student4@gmail.com',
+                'student5@gmail.com',
+                'student@ielts.com',
+                'priya@ielts.com',
+                'ravi@ielts.com',
+                'anjali@ielts.com',
+                'rohan@ielts.com',
+            }
 
-            for demo_user in demo_users:
-                user = User.query.filter_by(email=demo_user['email']).first()
-                password_hash = generate_password_hash(demo_user['password'])
-                if user:
-                    user.name = demo_user['name']
-                    user.password = password_hash
-                    user.role = demo_user['role']
-                    user.score = demo_user['score']
-                    user.streak = demo_user['streak']
-                    user.weak_areas = demo_user['weak_areas']
-                else:
-                    db.session.add(User(
-                        name=demo_user['name'],
-                        email=demo_user['email'],
-                        password=password_hash,
-                        role=demo_user['role'],
-                        score=demo_user['score'],
-                        streak=demo_user['streak'],
-                        weak_areas=demo_user['weak_areas'],
-                    ))
+            if os.getenv('REMOVE_SEEDED_DEMO_ACCOUNTS', 'true').lower() == 'true':
+                demo_users = User.query.filter(User.email.in_(seeded_student_emails)).all()
+                demo_ids = [user.id for user in demo_users]
 
-            db.session.commit()
+                if demo_ids:
+                    from models.submission import Submission
+                    from models.student_plan import StudentPlan
+
+                    session_ids = [session.id for session in LiveSession.query.filter(LiveSession.student_id.in_(demo_ids)).all()]
+
+                    if session_ids:
+                        SessionRecording.query.filter(SessionRecording.session_id.in_(session_ids)).delete(synchronize_session=False)
+                        LiveSession.query.filter(LiveSession.id.in_(session_ids)).delete(synchronize_session=False)
+
+                    Submission.query.filter(Submission.student_id.in_(demo_ids)).delete(synchronize_session=False)
+                    StudentPlan.query.filter(StudentPlan.student_id.in_(demo_ids)).delete(synchronize_session=False)
+                    BatchMember.query.filter(BatchMember.student_id.in_(demo_ids)).delete(synchronize_session=False)
+                    User.query.filter(User.id.in_(demo_ids)).delete(synchronize_session=False)
+                    db.session.commit()
 
             # Ensure required plans exist with requested pricing/cadence details.
             required_plans = [
@@ -340,4 +291,5 @@ def create_app(config_name=None):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    debug = os.getenv('FLASK_DEBUG', '0').lower() in {'1', 'true', 'yes'}
+    app.run(debug=debug, use_reloader=debug, host='0.0.0.0', port=5000)

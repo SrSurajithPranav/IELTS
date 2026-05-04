@@ -30,7 +30,7 @@ def create_student():
     if err:
         return err, code
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     required = ["name", "email", "password"]
     for field in required:
         if not data.get(field):
@@ -93,7 +93,7 @@ def reset_password(student_id):
     _, err, code = _require_admin()
     if err:
         return err, code
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     new_pass = data.get("password")
     if not new_pass or len(new_pass) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
@@ -110,7 +110,7 @@ def update_student(student_id):
     if err:
         return err, code
     student = User.query.get_or_404(student_id)
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     for field in ["name", "zoom_link", "weak_areas", "estimated_score"]:
         if field in data:
             if field == "weak_areas" and isinstance(data[field], list):

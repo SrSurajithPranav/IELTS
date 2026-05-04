@@ -1,4 +1,4 @@
-import { AdminAddStudent, LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
+import { LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 
 // ─────────────────────────────────────────────
@@ -84,17 +84,23 @@ const INFERRED_GITHUB_API_BASE_URL =
     ? `${window.location.protocol}//${window.location.hostname.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev")}/api`
     : "";
 
-const isLocalApiUrl = (value) =>
-  typeof value === "string" &&
-  (/^https?:\/\/localhost(?::\d+)?\/api\/?$/i.test(value) || /^https?:\/\/127\.0\.0\.1(?::\d+)?\/api\/?$/i.test(value));
+const isLocalApiUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
 
-let API_BASE_URL = "http://localhost:5000/api";
+let API_BASE_URL = "/api";
 if (IS_VITE_DEV) {
-  API_BASE_URL = ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : "/api";
+  API_BASE_URL = "/api";
 } else if (IS_GITHUB_FORWARDED_HOST) {
   API_BASE_URL = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : API_BASE_URL);
 } else {
-  API_BASE_URL = ENV_API_BASE_URL || API_BASE_URL;
+  API_BASE_URL = (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL)) ? ENV_API_BASE_URL : API_BASE_URL;
 }
 const API_TIMEOUT = 10000;
 
@@ -137,6 +143,14 @@ const apiCall = async (endpoint, options = {}) => {
     }
 
     return data;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Request timed out. Check backend availability.");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("Cannot reach backend API. Check backend/server availability and API URL settings.");
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -172,9 +186,10 @@ const submissionsAPI = {
     if (audioBlob) formData.append("audio", audioBlob, "recording.webm");
     
     const token = localStorage.getItem("jwt_token");
+    const hdrs = token ? { Authorization: `Bearer ${token}` } : {};
     return fetch(`${API_BASE_URL}/submissions`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: hdrs,
       body: formData
     }).then(r => r.json());
   },
@@ -232,28 +247,69 @@ const batchesAPI = {
   })
 };
 
+const studentsAPI = {
+  getAll: () => apiCall("/students/"),
+  create: (data) => apiCall("/students/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+  resetPassword: (studentId, password) => apiCall(`/students/${studentId}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  }),
+  update: (studentId, data) => apiCall(`/students/${studentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  }),
+  delete: (studentId) => apiCall(`/students/${studentId}`, {
+    method: "DELETE",
+  }),
+};
+
+usersAPI.getStudents = () => studentsAPI.getAll();
+usersAPI.update = (userId, data) => studentsAPI.update(userId, data);
+
+const DEMO_STUDENT_EMAILS = new Set([
+  "student1@gmail.com",
+  "student2@gmail.com",
+  "student3@gmail.com",
+  "student4@gmail.com",
+  "student5@gmail.com",
+  "student@ielts.com",
+  "priya@ielts.com",
+  "ravi@ielts.com",
+]);
+
+const visibleStudents = (rows) => (Array.isArray(rows)
+  ? rows.filter((student) => !DEMO_STUDENT_EMAILS.has(String(student?.email || "").toLowerCase()))
+  : []);
+
+const loadMistakeMemory = () => {
+  try {
+    const raw = localStorage.getItem("mistake_memory_v1");
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const pushMistakeMemory = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const current = loadMistakeMemory();
+  const next = { ...current };
+  items.forEach((item) => {
+    const key = String(item || "").toLowerCase().trim();
+    if (!key) return;
+    next[key] = (next[key] || 0) + 1;
+  });
+  localStorage.setItem("mistake_memory_v1", JSON.stringify(next));
+};
+
 // ─────────────────────────────────────────────
 // GLOBAL STYLES
 // ─────────────────────────────────────────────
 const useAuth = () => useContext(AuthCtx);
-
-const MOCK_USERS = [
-  { id: 1, name: "Arjun Kumar",    email: "student1@gmail.com", password: "123456", role: "student", streak: 7,  zoom: "https://zoom.us/j/123456789", score: 68 },
-  { id: 2, name: "Priya Sharma",   email: "student2@gmail.com", password: "123456", role: "student", streak: 12, zoom: "https://zoom.us/j/123456789", score: 72 },
-  { id: 4, name: "Ravi Menon",     email: "student3@gmail.com", password: "123456", role: "student", streak: 2,  zoom: "https://zoom.us/j/123456789", score: 61 },
-  { id: 5, name: "Anjali Singh",   email: "student4@gmail.com", password: "123456", role: "student", streak: 5,  zoom: "https://zoom.us/j/123456789", score: 65 },
-  { id: 6, name: "Rohan Das",      email: "student5@gmail.com", password: "123456", role: "student", streak: 3,  zoom: "https://zoom.us/j/123456789", score: 59 },
-  { id: 3, name: "Surajith Pranav", email: "srsurajith@gmail.com", password: "admin123", role: "admin", streak: 0, zoom: "" },
-];
-
-const PRACTICE_LOGINS = [
-  { label: "Student 1", email: "student1@gmail.com", password: "123456" },
-  { label: "Student 2", email: "student2@gmail.com", password: "123456" },
-  { label: "Student 3", email: "student3@gmail.com", password: "123456" },
-  { label: "Student 4", email: "student4@gmail.com", password: "123456" },
-  { label: "Student 5", email: "student5@gmail.com", password: "123456" },
-  { label: "Admin", email: "srsurajith@gmail.com", password: "admin123" },
-];
 
 // ─────────────────────────────────────────────
 // MOCK DATA
@@ -270,17 +326,6 @@ const MOCK_SUBMISSIONS = [
   { id: 1, taskId: 2, taskTitle: "Speaking Task – Part 1",       type: "speaking", date: "2025-05-01", status: "reviewed",  feedback: "Great fluency! Work on pronunciation of 'th' sounds. Your pacing was excellent." },
   { id: 2, taskId: 3, taskTitle: "Writing Task 1 – Pie Chart",   type: "writing",  date: "2025-04-30", status: "submitted", feedback: "" },
   { id: 3, taskId: 1, taskTitle: "Listening – Section 2",        type: "listening",date: "2025-04-29", status: "reviewed",  feedback: "8/10 correct. Focus on number dictation." },
-];
-
-const MOCK_STUDENTS = [
-  { id: 1, name: "Arjun Kumar",  email: "student@ielts.com", plan: "60-Day Intensive", progress: 62, streak: 7,  score: 68, weakAreas: ["Writing Task 1", "Listening Section 3"] },
-  { id: 2, name: "Priya Sharma", email: "priya@ielts.com",   plan: "90-Day Complete",  progress: 38, streak: 12, score: 72, weakAreas: ["Speaking Part 3"] },
-  { id: 3, name: "Ravi Menon",   email: "ravi@ielts.com",    plan: "60-Day Intensive", progress: 15, streak: 2,  score: 61, weakAreas: ["Grammar", "Vocabulary"] },
-];
-
-const MOCK_PLANS = [
-  { id: 1, name: "60-Day Intensive", days: 60, students: 2, tasks_per_day: 5 },
-  { id: 2, name: "90-Day Complete",  days: 90, students: 1, tasks_per_day: 4 },
 ];
 
 // ─────────────────────────────────────────────
@@ -417,6 +462,7 @@ const Sidebar = ({ page, setPage, user, onLogout }) => {
     { id: "tasks",        icon: "✓",  label: "Today's Tasks" },
     { id: "speaking",     icon: "🎧", label: "Speaking" },
     { id: "writing",      icon: "✍️", label: "Writing" },
+    { id: "debate",       icon: "🗣️", label: "Debate Mode" },
     { id: "progress",     icon: "📊", label: "Progress" },
     { id: "mocktest",     icon: "⏱",  label: "Mock Test" },
     { id: "games",        icon: "🧩", label: "Games" },
@@ -431,7 +477,6 @@ const Sidebar = ({ page, setPage, user, onLogout }) => {
     { id: "admin-plans",    icon: "📋", label: "Plans" },
     { id: "admin-tasks",    icon: "✓",  label: "Tasks" },
     { id: "admin-review",    icon: "🔍", label: "Review" },
-    { id: "admin-add-student", icon: "➕", label: "Add Student" },
     { id: "admin-sessions",    icon: "🎙", label: "Sessions" },
     { id: "admin-resources",   icon: "📚", label: "Resources" },
     { id: "admin-quizzes",     icon: "🧩", label: "Quiz Builder" },
@@ -574,17 +619,8 @@ const LoginPage = ({ onLogin }) => {
           </div>
 
           <div style={{ marginTop: 20, padding: "14px 16px", background: "var(--bg3)", borderRadius: 10, fontSize: 12, color: "var(--muted)", border: "1px dashed var(--border)" }}>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>Practice Accounts</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              {PRACTICE_LOGINS.map(acc => (
-                <div key={acc.email} style={{ background: "rgba(20,108,114,.08)", borderRadius: 8, padding: "6px 8px" }}>
-                  <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 11 }}>{acc.label}</div>
-                  <div style={{ fontSize: 11 }}>{acc.email}</div>
-                  <div style={{ fontSize: 11 }}>Pass: {acc.password}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)" }}>Student sign-in requires approval by srsurajith@gmail.com.</div>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>Student Sign-In</div>
+            <div>Use a real student account created by the teacher. Approval may be required depending on deployment settings.</div>
             <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>API: {API_BASE_URL}</div>
           </div>
         </Card>
@@ -881,6 +917,34 @@ const TasksPage = ({ user }) => {
 // ─────────────────────────────────────────────
 const SpeakingPage = ({ user }) => {
   const [subs, setSubs] = useState([]);
+  const [transcript, setTranscript] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [interviewPart, setInterviewPart] = useState("part1");
+  const [currentPrompt, setCurrentPrompt] = useState("");
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const recognitionRef = useRef(null);
+
+  const promptBank = {
+    part1: [
+      "Tell me about your hometown and what makes it special.",
+      "What type of music do you listen to and why?",
+      "How do you usually spend your weekends?",
+    ],
+    part2: [
+      "Describe a memorable lesson you learned recently.",
+      "Talk about a place you visited that exceeded expectations.",
+      "Describe a person who motivated you to improve.",
+    ],
+    part3: [
+      "How can schools better prepare students for real-world communication?",
+      "Do you think technology improves public speaking skills? Why?",
+      "Should communication skills be assessed more strictly in education?",
+    ],
+  };
 
   useEffect(() => {
     submissionsAPI.getStudentSubs(user.id)
@@ -888,9 +952,121 @@ const SpeakingPage = ({ user }) => {
       .catch(() => setSubs([]));
   }, [user.id]);
 
+  useEffect(() => {
+    const prompts = promptBank[interviewPart] || [];
+    setCurrentPrompt(prompts[Math.floor(Math.random() * prompts.length)] || "");
+  }, [interviewPart]);
+
+  useEffect(() => {
+    const SR = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+    if (!SR) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const chunk = event.results[i][0]?.transcript || "";
+        if (event.results[i].isFinal) {
+          finalText += `${chunk} `;
+        } else {
+          interimText += `${chunk} `;
+        }
+      }
+      if (finalText) {
+        setTranscript((prev) => `${prev} ${finalText}`.trim());
+      }
+      setLiveTranscript(interimText.trim());
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    setSpeechSupported(true);
+
+    return () => {
+      recognition.stop();
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  const startListening = () => {
+    if (!recognitionRef.current) return;
+    setLiveTranscript("");
+    recognitionRef.current.start();
+    setIsListening(true);
+  };
+
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+    recognitionRef.current.stop();
+    setIsListening(false);
+  };
+
+  const runAnalysis = async () => {
+    setAnalysisError("");
+    setAnalyzing(true);
+    try {
+      const result = await apiCall("/ai/speaking/analyze", {
+        method: "POST",
+        body: JSON.stringify({ transcript }),
+      });
+      if (result?.error) {
+        setAnalysisError(result.error);
+        setAnalysis(null);
+      } else {
+        setAnalysis(result);
+        pushMistakeMemory(["speaking fluency", "speaking pronunciation", ...((result?.analysis?.suggestions) || [])]);
+      }
+    } catch (error) {
+      setAnalysisError(error.message || "AI analysis failed.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Speaking Submissions</div>
+      <Card className="fade-up-2" style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.25)", background: "rgba(20,108,114,.06)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700 }}>AI Interviewer Simulation</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn size="sm" variant={interviewPart === "part1" ? "primary" : "outline"} onClick={() => setInterviewPart("part1")}>Part 1</Btn>
+            <Btn size="sm" variant={interviewPart === "part2" ? "primary" : "outline"} onClick={() => setInterviewPart("part2")}>Part 2</Btn>
+            <Btn size="sm" variant={interviewPart === "part3" ? "primary" : "outline"} onClick={() => setInterviewPart("part3")}>Part 3</Btn>
+          </div>
+        </div>
+        <div style={{ fontSize: 13, marginBottom: 10, color: "var(--text)" }}>{currentPrompt}</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn size="sm" onClick={() => setCurrentPrompt((promptBank[interviewPart] || [""])[Math.floor(Math.random() * (promptBank[interviewPart] || [""]).length)])}>New Prompt</Btn>
+          {speechSupported ? (
+            <Btn size="sm" variant={isListening ? "danger" : "outline"} onClick={isListening ? stopListening : startListening}>
+              {isListening ? "Stop Live Transcript" : "Start Live Transcript"}
+            </Btn>
+          ) : (
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>Speech-to-text not supported in this browser.</span>
+          )}
+        </div>
+        {liveTranscript && (
+          <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: "var(--bg3)", fontSize: 12, color: "var(--muted)" }}>
+            Live: {liveTranscript}
+          </div>
+        )}
+      </Card>
       {subs.map(s => (
         <Card key={s.id} className="fade-up-2" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -924,6 +1100,40 @@ const SpeakingPage = ({ user }) => {
           </div>
         </div>
       </Card>
+
+      <Card className="fade-up-3" style={{ marginTop: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>AI Speaking Check</div>
+        <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>Paste a transcript or rough draft and get an instant AI-style breakdown.</p>
+        <textarea
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
+          rows={6}
+          placeholder="Paste your speaking transcript here…"
+          style={{ width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, color: "var(--text)", fontSize: 13, resize: "vertical", outline: "none" }}
+        />
+        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+          <Btn onClick={runAnalysis} disabled={!transcript.trim() || analyzing}>{analyzing ? "Analyzing…" : "Analyze Speaking"}</Btn>
+        </div>
+        {analysisError && <div style={{ marginTop: 10, color: "var(--danger)", fontSize: 12 }}>{analysisError}</div>}
+        {analysis && (
+          <div style={{ marginTop: 14, padding: 14, background: "var(--bg3)", borderRadius: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontWeight: 600 }}>AI Speaking Analysis</div>
+              <Badge label={`Band ${analysis.band_estimate}`} c="success" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, marginBottom: 10 }}>
+              <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Fluency</div><div style={{ fontWeight: 700 }}>{analysis.analysis.fluency_score}/100</div></div>
+              <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Pronunciation</div><div style={{ fontWeight: 700 }}>{analysis.analysis.pronunciation_score}/100</div></div>
+              <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Grammar</div><div style={{ fontWeight: 700 }}>{analysis.analysis.grammar_score}/100</div></div>
+              <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Filler words</div><div style={{ fontWeight: 700 }}>{analysis.analysis.filler_count}</div></div>
+            </div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>Suggestions</div>
+            <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text)", fontSize: 13 }}>
+              {analysis.analysis.suggestions.map((item, index) => <li key={index} style={{ marginBottom: 4 }}>{item}</li>)}
+            </ul>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
@@ -950,6 +1160,9 @@ const WritingPage = ({ user }) => {
   const [grammarResult, setGrammarResult] = useState(null);
   const [checking, setChecking] = useState(false);
   const [subs, setSubs] = useState([]);
+  const [rewriting, setRewriting] = useState(false);
+  const [rewriteResult, setRewriteResult] = useState(null);
+  const [rewriteError, setRewriteError] = useState("");
 
   useEffect(() => {
     submissionsAPI.getStudentSubs(user.id)
@@ -958,12 +1171,51 @@ const WritingPage = ({ user }) => {
   }, [user.id]);
   const words = text.split(/\s+/).filter(Boolean).length;
 
-  const checkGrammar = () => {
+  const checkGrammar = async () => {
     setChecking(true);
-    setTimeout(() => {
+    try {
+      const result = await apiCall("/ai/writing/analyze", {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+      if (result?.error) {
+        setGrammarResult(analyzeWriting(text));
+      } else {
+        setGrammarResult({
+          grammarScore: result.analysis.grammar_score,
+          vocabularyScore: Math.round(result.analysis.vocabulary_richness * 100),
+          suggestions: result.analysis.suggestions,
+          bandEstimate: result.band_estimate,
+          transcript: result.transcript,
+        });
+        pushMistakeMemory(["writing grammar", "writing coherence", ...(result.analysis.suggestions || [])]);
+      }
+    } catch {
       setGrammarResult(analyzeWriting(text));
+    } finally {
       setChecking(false);
-    }, 800);
+    }
+  };
+
+  const rewriteBand9 = async () => {
+    setRewriteError("");
+    setRewriting(true);
+    try {
+      const result = await apiCall("/ai/writing/rewrite", {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+      if (result?.error) {
+        setRewriteError(result.error);
+        setRewriteResult(null);
+      } else {
+        setRewriteResult(result);
+      }
+    } catch (error) {
+      setRewriteError(error.message || "Rewrite failed.");
+    } finally {
+      setRewriting(false);
+    }
   };
 
   return (
@@ -987,6 +1239,9 @@ const WritingPage = ({ user }) => {
             <Btn variant="outline" size="sm" onClick={checkGrammar} disabled={checking}>
               {checking ? "Checking…" : "🔍 AI Grammar Check"}
             </Btn>
+            <Btn variant="outline" size="sm" onClick={rewriteBand9} disabled={rewriting || words < 80}>
+              {rewriting ? "Rewriting..." : "✨ Band 9 Rewrite"}
+            </Btn>
             <Btn size="sm" disabled={words < 150}>Submit</Btn>
           </div>
         </div>
@@ -997,6 +1252,9 @@ const WritingPage = ({ user }) => {
               <span>AI Writing Analysis</span>
               <Badge label={`Score: ${grammarResult.grammarScore}/100`} color="success" />
             </div>
+            {grammarResult.bandEstimate && (
+              <div style={{ marginBottom: 10, fontSize: 13, color: "var(--muted)" }}>Estimated IELTS band: <strong>{grammarResult.bandEstimate}</strong></div>
+            )}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 8 }}>
                 <strong>Suggestions:</strong>
@@ -1020,6 +1278,22 @@ const WritingPage = ({ user }) => {
             </div>
           </div>
         )}
+
+        {rewriteError && <div style={{ marginTop: 12, color: "var(--danger)", fontSize: 12 }}>{rewriteError}</div>}
+        {rewriteResult && (
+          <div style={{ marginTop: 16, padding: 16, background: "rgba(20,108,114,.08)", border: "1px solid rgba(20,108,114,.2)", borderRadius: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontWeight: 700 }}>Band 9 Rewrite</div>
+              <Badge label={`Target ${rewriteResult.target_band}`} color="success" />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Upgraded Version</div>
+            <div style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.6, marginBottom: 10 }}>{rewriteResult.rewritten}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Why this is stronger</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+              {(rewriteResult.upgrade_notes || []).map((item, idx) => <li key={idx} style={{ marginBottom: 4 }}>{item}</li>)}
+            </ul>
+          </div>
+        )}
       </Card>
 
       {/* Past submissions */}
@@ -1038,6 +1312,92 @@ const WritingPage = ({ user }) => {
 };
 
 // ─────────────────────────────────────────────
+// DEBATE MODE PAGE
+// ─────────────────────────────────────────────
+const DebateModePage = () => {
+  const topics = [
+    "Universities should move all exams online.",
+    "Social media does more harm than good for students.",
+    "Governments should provide free public transport.",
+    "AI will improve education more than human tutors.",
+  ];
+  const [topic, setTopic] = useState(topics[0]);
+  const [argument, setArgument] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  const runDebateAnalysis = async () => {
+    setAnalyzing(true);
+    setError("");
+    try {
+      const res = await apiCall("/ai/debate/analyze", {
+        method: "POST",
+        body: JSON.stringify({ topic, argument }),
+      });
+      if (res?.error) {
+        setError(res.error);
+        setResult(null);
+      } else {
+        setResult(res);
+      }
+    } catch (e) {
+      setError(e.message || "Debate analysis failed.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>AI Debate Mode</div>
+      <p style={{ color: "var(--muted)", marginBottom: 16, fontSize: 13 }}>Defend your viewpoint, then get instant argument-strength feedback and IELTS-style guidance.</p>
+
+      <Card className="fade-up-2" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Debate Topic</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          {topics.map((item) => (
+            <Btn key={item} size="sm" variant={topic === item ? "primary" : "outline"} onClick={() => setTopic(item)}>{item.slice(0, 34)}...</Btn>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 10 }}>{topic}</div>
+        <textarea
+          value={argument}
+          onChange={(e) => setArgument(e.target.value)}
+          rows={8}
+          placeholder="Write your stance with reasons and one example..."
+          style={{ width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, color: "var(--text)", fontSize: 13, resize: "vertical", outline: "none" }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{argument.trim().split(/\s+/).filter(Boolean).length} words</span>
+          <Btn onClick={runDebateAnalysis} disabled={!argument.trim() || analyzing}>{analyzing ? "Analyzing..." : "Analyze Argument"}</Btn>
+        </div>
+        {error && <div style={{ marginTop: 10, fontSize: 12, color: "var(--danger)" }}>{error}</div>}
+      </Card>
+
+      {result && (
+        <Card className="fade-up-3" style={{ background: "rgba(20,108,114,.08)", border: "1px solid rgba(20,108,114,.2)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ fontWeight: 700 }}>Debate Analysis</div>
+            <Badge label={`Band ${result.band_estimate}`} color="success" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, marginBottom: 10 }}>
+            <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Argument</div><div style={{ fontWeight: 700 }}>{result.analysis.argument_strength}/100</div></div>
+            <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Structure</div><div style={{ fontWeight: 700 }}>{result.analysis.structure_score}/100</div></div>
+            <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Vocabulary</div><div style={{ fontWeight: 700 }}>{result.analysis.vocabulary_score}/100</div></div>
+            <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Connectors</div><div style={{ fontWeight: 700 }}>{result.analysis.connector_count}</div></div>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>Improvement tips</div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+            {result.analysis.tips.map((tip, idx) => <li key={idx} style={{ marginBottom: 4 }}>{tip}</li>)}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // PROGRESS PAGE
 // ─────────────────────────────────────────────
 const ProgressPage = ({ user }) => {
@@ -1049,6 +1409,9 @@ const ProgressPage = ({ user }) => {
   ];
   const overall = (skillData.reduce((a, b) => a + b.score, 0) / skillData.length).toFixed(1);
   const weakAreas = skillData.filter(s => s.score < 6.5).map(s => s.label);
+  const memoryItems = Object.entries(loadMistakeMemory())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   return (
     <div>
@@ -1081,6 +1444,20 @@ const ProgressPage = ({ user }) => {
           </div>
         </Card>
       )}
+
+      <Card className="fade-up-3" style={{ marginBottom: 20, background: "rgba(20,108,114,.06)", border: "1px solid rgba(20,108,114,.2)" }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Mistake Memory System</div>
+        {memoryItems.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>No recurring errors logged yet. Complete speaking/writing AI checks to build targeted drills.</div>
+        ) : (
+          memoryItems.map(([label, count]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 13, textTransform: "capitalize" }}>{label}</span>
+              <Badge label={`${count}x`} color="danger" />
+            </div>
+          ))
+        )}
+      </Card>
 
       {/* Skills */}
       <Card className="fade-up-4" style={{ marginBottom: 20 }}>
@@ -1436,7 +1813,7 @@ const LeaderboardPage = () => {
   useEffect(() => {
     usersAPI.getStudents()
       .then((res) => {
-        const ranked = (res || [])
+        const ranked = visibleStudents(res)
           .map((u) => ({
             name: u.name,
             streak: u.streak || 0,
@@ -1570,18 +1947,22 @@ const AdminHome = () => {
   const [students, setStudents] = useState([]);
   const [plans, setPlans] = useState([]);
   const [pending, setPending] = useState([]);
+  const [homeError, setHomeError] = useState("");
 
   useEffect(() => {
-    Promise.all([usersAPI.getStudents(), plansAPI.getAll(), submissionsAPI.getPending()])
-      .then(([s, p, pend]) => {
-        setStudents(s || []);
-        setPlans(p || []);
-        setPending(pend || []);
-      })
-      .catch(() => {
-        setStudents([]);
-        setPlans([]);
-        setPending([]);
+    Promise.allSettled([studentsAPI.getAll(), plansAPI.getAll(), submissionsAPI.getPending()])
+      .then(([studentsRes, plansRes, pendingRes]) => {
+        const loadedStudents = studentsRes.status === "fulfilled" ? visibleStudents(studentsRes.value) : [];
+        const loadedPlans = plansRes.status === "fulfilled" ? (plansRes.value || []) : [];
+        const loadedPending = pendingRes.status === "fulfilled" ? (pendingRes.value || []) : [];
+        setStudents(loadedStudents);
+        setPlans(loadedPlans);
+        setPending(loadedPending);
+        if (studentsRes.status === "rejected" || plansRes.status === "rejected" || pendingRes.status === "rejected") {
+          setHomeError("Some dashboard widgets could not be loaded. Backend may be restarting.");
+        } else {
+          setHomeError("");
+        }
       });
   }, []);
 
@@ -1607,8 +1988,17 @@ const AdminHome = () => {
         ))}
       </div>
 
+      {homeError && (
+        <Card style={{ marginBottom: 14, border: "1px solid rgba(197,48,48,.35)", background: "rgba(197,48,48,.08)" }}>
+          <div style={{ fontSize: 12 }}>{homeError}</div>
+        </Card>
+      )}
+
       <Card className="fade-up-3">
         <div style={{ fontWeight: 600, marginBottom: 14 }}>Students at a Glance</div>
+        {students.length === 0 && (
+          <div style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}>No student records yet. Add students from the Students tab.</div>
+        )}
         {students.map(s => (
           <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
             <div style={{
@@ -1636,27 +2026,190 @@ const AdminHome = () => {
 // ─────────────────────────────────────────────
 const AdminStudents = () => {
   const [students, setStudents] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [createdCredentials, setCreatedCredentials] = useState(null);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [tag, setTag] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [passMsg, setPassMsg] = useState("");
+
+  const weakAreasToList = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.trim()) return value.split(",").map((item) => item.trim()).filter(Boolean);
+    return [];
+  };
+
+  const refreshStudents = async () => {
+    setLoadingStudents(true);
+    setLoadError("");
+    try {
+      const res = await studentsAPI.getAll();
+      setStudents(visibleStudents(res));
+      if (selected) {
+        const updatedSelected = visibleStudents(res).find((student) => student.id === selected.id) || null;
+        setSelected(updatedSelected);
+      }
+    } catch (error) {
+      setStudents([]);
+      setLoadError(error.message || "Unable to load students right now.");
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
 
   useEffect(() => {
-    usersAPI.getStudents().then((res) => setStudents(res || [])).catch(() => setStudents([]));
+    refreshStudents();
+    plansAPI.getAll().then((res) => setPlans(Array.isArray(res) ? res : [])).catch(() => setPlans([]));
   }, []);
+
+  const [formState, setFormState] = useState({ name: "", email: "", password: "", plan_id: "", zoom_link: "" });
+
+  const handleCreateStudent = async () => {
+    if (!formState.name.trim() || !formState.email.trim() || !formState.password.trim()) {
+      setAddError("Name, email, and password are required.");
+      return;
+    }
+
+    setAddError("");
+    try {
+      const response = await studentsAPI.create({
+        name: formState.name.trim(),
+        email: formState.email.trim(),
+        password: formState.password,
+        plan_id: formState.plan_id || undefined,
+        zoom_link: formState.zoom_link.trim(),
+      });
+      setCreatedCredentials(response?.login_credentials || null);
+      setShowAdd(false);
+      setFormState({ name: "", email: "", password: "", plan_id: "", zoom_link: "" });
+      await refreshStudents();
+    } catch (error) {
+      setAddError(error.message || "Failed to create student.");
+    }
+  };
 
   const addWeakArea = async () => {
     if (!selected || !tag.trim()) return;
-    const existing = selected.weak_areas || [];
+    const existing = weakAreasToList(selected.weak_areas);
     const merged = Array.from(new Set([...existing, tag.trim()]));
-    await usersAPI.update(selected.id, { weak_areas: merged.join(',') });
-    const refreshed = await usersAPI.getStudents();
-    setStudents(refreshed || []);
-    setSelected((refreshed || []).find((u) => u.id === selected.id) || null);
+    await studentsAPI.update(selected.id, { weak_areas: merged });
+    await refreshStudents();
     setTag("");
+
+  };
+
+  const resetPassword = async () => {
+    if (!selected) return;
+    if (!newPass.trim() || newPass.trim().length < 6) {
+      setPassMsg("Password must be at least 6 characters.");
+      return;
+    }
+    try {
+      const result = await studentsAPI.resetPassword(selected.id, newPass.trim());
+      setPassMsg(`Password updated for ${result.email}.`);
+      setNewPass("");
+    } catch (error) {
+      setPassMsg(error.message || "Failed to reset password.");
+    }
+  };
+
+  const deleteStudent = async (studentId) => {
+    if (!window.confirm("Delete this student? This cannot be undone.")) return;
+    await studentsAPI.delete(studentId);
+    setSelected(null);
+    await refreshStudents();
   };
 
   return (
     <div>
-      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Students</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+        <div>
+          <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700 }}>Students</div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+            Manage student accounts, plans, passwords, and weak areas.
+          </div>
+        </div>
+        <Btn onClick={() => { setShowAdd((v) => !v); setAddError(""); setCreatedCredentials(null); }}>
+          {showAdd ? "Close Add Form" : "+ Add Student"}
+        </Btn>
+      </div>
+
+      {showAdd && (
+        <Card className="fade-up-2" style={{ marginBottom: 16, border: "1px solid var(--accent)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontWeight: 700 }}>Add Student</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Creates a real login for a student</div>
+          </div>
+
+          {createdCredentials && (
+            <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "rgba(47,133,90,.08)", border: "1px solid rgba(47,133,90,.25)" }}>
+              <div style={{ fontWeight: 700, marginBottom: 6, color: "var(--success)" }}>Student created successfully</div>
+              <div style={{ fontSize: 13 }}>Email: {createdCredentials.email}</div>
+              <div style={{ fontSize: 13 }}>Password: {createdCredentials.password}</div>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Name *</label>
+              <input value={formState.name} onChange={(e) => setFormState((c) => ({ ...c, name: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }} placeholder="Student name" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Email *</label>
+              <input value={formState.email} onChange={(e) => setFormState((c) => ({ ...c, email: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }} placeholder="student@email.com" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Password *</label>
+              <input type="password" value={formState.password} onChange={(e) => setFormState((c) => ({ ...c, password: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }} placeholder="Create a password" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Plan (optional)</label>
+              <select value={formState.plan_id} onChange={(e) => setFormState((c) => ({ ...c, plan_id: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }}>
+                <option value="">No plan</option>
+                {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+              </select>
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Zoom / Jitsi Link (optional)</label>
+              <input value={formState.zoom_link} onChange={(e) => setFormState((c) => ({ ...c, zoom_link: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }} placeholder="https://meet.jit.si/room" />
+            </div>
+          </div>
+
+          {addError && <div style={{ marginTop: 10, color: "var(--danger)", fontSize: 12 }}>{addError}</div>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <Btn onClick={handleCreateStudent}>Create Student</Btn>
+            <Btn variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Btn>
+          </div>
+        </Card>
+      )}
+
+      {loadingStudents && (
+        <Card style={{ marginBottom: 16 }}>
+          Loading students...
+        </Card>
+      )}
+
+      {loadError && (
+        <Card style={{ marginBottom: 16, border: "1px solid rgba(197,48,48,.35)", background: "rgba(197,48,48,.08)" }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Could not load students</div>
+          <div style={{ fontSize: 12 }}>{loadError}</div>
+        </Card>
+      )}
+
+      {!loadingStudents && students.length === 0 && (
+        <Card style={{ marginBottom: 16, textAlign: "center", padding: 28 }}>
+          <div style={{ fontSize: 30, marginBottom: 10 }}>👥</div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>No students yet</div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>Use the Add Student button in the top right to create the first account.</div>
+          <Btn onClick={() => setShowAdd(true)}>+ Add Student</Btn>
+        </Card>
+      )}
+
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: selected ? "1fr 1fr" : "1fr" }}>
         <div>
           {students.map(s => (
@@ -1705,7 +2258,7 @@ const AdminStudents = () => {
 
             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Weak Areas</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-              {(selected.weak_areas || []).map((w, i) => <Badge key={i} label={w} color="danger" />)}
+              {weakAreasToList(selected.weak_areas).map((w, i) => <Badge key={i} label={w} color="danger" />)}
             </div>
 
             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Add Weak Area Tag</div>
@@ -1717,8 +2270,19 @@ const AdminStudents = () => {
               <Btn size="sm" onClick={addWeakArea}>Add</Btn>
             </div>
 
-            <div style={{ marginTop: 16 }}>
-              <Btn style={{ width: "100%" }} variant="purple">Assign New Plan</Btn>
+            <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Reset Password</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input value={newPass} onChange={(e) => setNewPass(e.target.value)} type="password" placeholder="New password" style={{ flex: 1, background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", color: "var(--text)", fontSize: 13, outline: "none" }} />
+                  <Btn size="sm" variant="outline" onClick={resetPassword}>Reset</Btn>
+                </div>
+              </div>
+              {passMsg && <div style={{ fontSize: 12, color: passMsg.startsWith("Password updated") ? "var(--success)" : "var(--danger)" }}>{passMsg}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn style={{ width: "100%" }} variant="purple">Assign New Plan</Btn>
+                <Btn style={{ width: "100%" }} variant="danger" onClick={() => deleteStudent(selected.id)}>Delete Student</Btn>
+              </div>
             </div>
           </Card>
         )}
@@ -1737,27 +2301,45 @@ const AdminPlans = () => {
   const [planDays, setPlanDays] = useState(60);
   const [sessionType, setSessionType] = useState("solo");
   const [description, setDescription] = useState("");
+  const [planError, setPlanError] = useState("");
+  const [planMsg, setPlanMsg] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
 
   const refreshPlans = async () => {
     const res = await plansAPI.getAll();
     setPlans(res || []);
   };
 
-  useEffect(() => { refreshPlans().catch(() => setPlans([])); }, []);
+  useEffect(() => {
+    refreshPlans().catch((error) => {
+      setPlans([]);
+      setPlanError(error.message || "Failed to load plans.");
+    });
+  }, []);
 
   const createNewPlan = async () => {
-    await plansAPI.create({
-      name: planName,
-      duration_days: Number(planDays),
-      session_type: sessionType,
-      description,
-    });
-    setShowNew(false);
-    setPlanName("");
-    setPlanDays(60);
-    setSessionType("solo");
-    setDescription("");
-    await refreshPlans();
+    setSavingPlan(true);
+    setPlanError("");
+    setPlanMsg("");
+    try {
+      await plansAPI.create({
+        name: planName,
+        duration_days: Number(planDays),
+        session_type: sessionType,
+        description,
+      });
+      setShowNew(false);
+      setPlanName("");
+      setPlanDays(60);
+      setSessionType("solo");
+      setDescription("");
+      setPlanMsg("Plan created successfully.");
+      await refreshPlans();
+    } catch (error) {
+      setPlanError(error.message || "Plan creation failed.");
+    } finally {
+      setSavingPlan(false);
+    }
   };
 
   const inp = {
@@ -1771,6 +2353,17 @@ const AdminPlans = () => {
         <div className="playfair fade-up" style={{ fontSize: 22, fontWeight: 700 }}>Plans</div>
         <Btn onClick={() => setShowNew(e => !e)}>+ New Plan</Btn>
       </div>
+
+      {planError && (
+        <Card style={{ marginBottom: 14, border: "1px solid rgba(197,48,48,.35)", background: "rgba(197,48,48,.08)", fontSize: 12 }}>
+          {planError}
+        </Card>
+      )}
+      {planMsg && (
+        <Card style={{ marginBottom: 14, border: "1px solid rgba(47,133,90,.35)", background: "rgba(47,133,90,.08)", fontSize: 12 }}>
+          {planMsg}
+        </Card>
+      )}
 
       {showNew && (
         <Card className="fade-up" style={{ marginBottom: 20, border: "1px solid var(--accent)" }}>
@@ -1796,7 +2389,7 @@ const AdminPlans = () => {
               <textarea rows={3} style={inp} value={description} onChange={e => setDescription(e.target.value)} placeholder="INR 10000 for 60 days, every 2 days session" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn onClick={createNewPlan} disabled={!planName.trim()}>Create Plan</Btn>
+              <Btn onClick={createNewPlan} disabled={!planName.trim() || savingPlan}>{savingPlan ? "Creating..." : "Create Plan"}</Btn>
               <Btn variant="ghost" onClick={() => setShowNew(false)}>Cancel</Btn>
             </div>
           </div>
@@ -1924,6 +2517,11 @@ const AdminTasks = () => {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [showCreate, setShowCreate] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: "", type: "speaking", description: "", duration: "20 min" });
+  const [taskError, setTaskError] = useState("");
+  const [savingTask, setSavingTask] = useState(false);
+  const [creatingStarterPlan, setCreatingStarterPlan] = useState(false);
 
   useEffect(() => {
     plansAPI.getAll()
@@ -1942,11 +2540,83 @@ const AdminTasks = () => {
       .catch(() => setTasks([]));
   }, [selectedPlan, day]);
 
+  const createTask = async () => {
+    if (!selectedPlan) {
+      setTaskError("Select a plan first.");
+      return;
+    }
+    if (!taskForm.title.trim() || !taskForm.description.trim()) {
+      setTaskError("Title and description are required.");
+      return;
+    }
+    setSavingTask(true);
+    setTaskError("");
+    try {
+      await apiCall("/tasks/", {
+        method: "POST",
+        body: JSON.stringify({
+          plan_id: selectedPlan,
+          day_number: day,
+          type: taskForm.type,
+          title: taskForm.title.trim(),
+          description: taskForm.description.trim(),
+          duration: taskForm.duration.trim() || "20 min",
+          difficulty: day < 15 ? "beginner" : day < 45 ? "intermediate" : "advanced",
+        }),
+      });
+      setTaskForm({ title: "", type: "speaking", description: "", duration: "20 min" });
+      setShowCreate(false);
+      const refreshed = await apiCall(`/tasks/plan/${selectedPlan}/day/${day}`);
+      setTasks(refreshed?.tasks || []);
+    } catch (error) {
+      setTaskError(error.message || "Failed to create task.");
+    } finally {
+      setSavingTask(false);
+    }
+  };
+
+  const createStarterPlan = async () => {
+    setCreatingStarterPlan(true);
+    setTaskError("");
+    try {
+      const created = await plansAPI.create({
+        name: "Starter IELTS Plan",
+        duration_days: 30,
+        session_type: "solo",
+        description: "Auto-created starter plan from Task Editor.",
+      });
+      const allPlans = await plansAPI.getAll();
+      const normalized = Array.isArray(allPlans) ? allPlans : [];
+      setPlans(normalized);
+      setSelectedPlan(created?.id || normalized[0]?.id || null);
+      setShowCreate(true);
+    } catch (error) {
+      setTaskError(error.message || "Could not create starter plan.");
+    } finally {
+      setCreatingStarterPlan(false);
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    if (!window.confirm("Delete this task?")) return;
+    await apiCall(`/tasks/${taskId}`, { method: "DELETE" });
+    const refreshed = await apiCall(`/tasks/plan/${selectedPlan}/day/${day}`);
+    setTasks(refreshed?.tasks || []);
+  };
+
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Task Editor</div>
       <Card className="fade-up-2" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Select Plan and Day</div>
+        {plans.length === 0 && (
+          <div style={{ marginBottom: 12, padding: 12, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", fontSize: 12, color: "var(--muted)" }}>
+            No plan exists yet. Create a starter plan directly here.
+            <div style={{ marginTop: 8 }}>
+              <Btn size="sm" onClick={createStarterPlan} disabled={creatingStarterPlan}>{creatingStarterPlan ? "Creating..." : "Create Starter Plan"}</Btn>
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           {plans.map((plan) => (
             <Btn key={plan.id} size="sm" variant={selectedPlan === plan.id ? "primary" : "outline"} onClick={() => setSelectedPlan(plan.id)}>
@@ -1965,7 +2635,45 @@ const AdminTasks = () => {
           ))}
           <span style={{ fontSize: 12, color: "var(--muted)", alignSelf: "center" }}>…and so on</span>
         </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Add or manage the day’s task pack.</div>
+          <Btn size="sm" onClick={() => setShowCreate((v) => !v)}>{showCreate ? "Close" : "+ Add Task"}</Btn>
+        </div>
       </Card>
+
+      {showCreate && (
+        <Card className="fade-up-3" style={{ marginBottom: 20, border: "1px solid var(--accent)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>Create Task for Day {day}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Title</label>
+              <input value={taskForm.title} onChange={(e) => setTaskForm((c) => ({ ...c, title: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }} placeholder="Day 1 Speaking Lab" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Type</label>
+              <select value={taskForm.type} onChange={(e) => setTaskForm((c) => ({ ...c, type: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }}>
+                <option value="speaking">speaking</option>
+                <option value="writing">writing</option>
+                <option value="reading">reading</option>
+                <option value="listening">listening</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Duration</label>
+              <input value={taskForm.duration} onChange={(e) => setTaskForm((c) => ({ ...c, duration: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)" }} placeholder="20 min" />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Description</label>
+              <textarea rows={4} value={taskForm.description} onChange={(e) => setTaskForm((c) => ({ ...c, description: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg3)", color: "var(--text)", resize: "vertical" }} placeholder="Add the prompt, instructions, and scoring target." />
+            </div>
+          </div>
+          {taskError && <div style={{ marginTop: 10, fontSize: 12, color: "var(--danger)" }}>{taskError}</div>}
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <Btn onClick={createTask} disabled={savingTask}>{savingTask ? "Saving…" : "Create Task"}</Btn>
+            <Btn variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Btn>
+          </div>
+        </Card>
+      )}
 
       <div className="fade-up-3">
         {tasks.map((t) => (
@@ -1980,12 +2688,12 @@ const AdminTasks = () => {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <Btn size="sm" variant="outline">Edit</Btn>
-                <Btn size="sm" variant="danger">Remove</Btn>
+                <Btn size="sm" variant="danger" onClick={() => deleteTask(t.id)}>Remove</Btn>
               </div>
             </div>
           </Card>
         ))}
-        <Btn style={{ marginTop: 8 }}>+ Add Task to Day {day}</Btn>
+        <Btn style={{ marginTop: 8 }} onClick={() => setShowCreate(true)}>+ Add Task to Day {day}</Btn>
       </div>
     </div>
   );
@@ -2013,6 +2721,7 @@ export default function App() {
     tasks:     <TasksPage user={user} />,
     speaking:  <SpeakingPage user={user} />,
     writing:   <WritingPage user={user} />,
+    debate:    <DebateModePage />,
     progress:  <ProgressPage user={user} />,
     mocktest:  <MockTestPage />,
     games:     <GamesArenaPage />,
@@ -2027,13 +2736,17 @@ export default function App() {
     "admin-plans":    <AdminPlans />,
     "admin-tasks":    <AdminTasks />,
     "admin-review":        <AdminReview />,
-    "admin-add-student":   <AdminAddStudent />,
     "admin-sessions":      <AdminSessionsMgr />,
     "admin-resources":     <AdminResourcesMgr />,
     "admin-quizzes":       <AdminQuizBuilder />,
   };
   const pages = user.role === "admin" ? adminPages : studentPages;
   const content = pages[page] || <div style={{ color: "var(--muted)" }}>Page not found</div>;
+  const quickMeetUrl = user.zoom_link || `https://meet.jit.si/ielts-quick-meet-${user.id}`;
+
+  const openQuickMeet = () => {
+    window.open(quickMeetUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -2046,6 +2759,28 @@ export default function App() {
           </div>
         </main>
       </div>
+      <button
+        onClick={openQuickMeet}
+        title="Start a quick meet"
+        style={{
+          position: "fixed",
+          right: 20,
+          bottom: 20,
+          zIndex: 40,
+          width: 58,
+          height: 58,
+          borderRadius: "50%",
+          border: "none",
+          background: "linear-gradient(135deg, var(--accent), var(--accent2))",
+          color: "#fff",
+          boxShadow: "0 16px 34px rgba(20,108,114,.28)",
+          fontSize: 24,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        🎥
+      </button>
     </>
   );
 }

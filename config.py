@@ -15,7 +15,7 @@ class Config:
 
     # Login approval + email notifications
     REQUIRE_LOGIN_APPROVAL = os.getenv('REQUIRE_LOGIN_APPROVAL', 'true').lower() == 'true'
-    ADMIN_APPROVER_EMAIL = os.getenv('ADMIN_APPROVER_EMAIL', 'srsurajith@gmail.com')
+    ADMIN_APPROVER_EMAIL = os.getenv('ADMIN_APPROVER_EMAIL')
     FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
     BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
 
@@ -28,6 +28,7 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
+    REQUIRE_LOGIN_APPROVAL = False
 
 class ProductionConfig(Config):
     """Production configuration."""

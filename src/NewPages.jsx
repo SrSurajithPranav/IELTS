@@ -1,3 +1,5 @@
+import React from "react";
+
 /**
  * NewPages.jsx
  * Drop this file in src/ and import the components into App.jsx
@@ -29,7 +31,13 @@ const inp = {
   fontSize: 13,
   outline: "none",
 };
-const Btn = ({ children, onClick, v = "primary", disabled = false, full = false }) => {
+const Card = ({ children, style = {}, className = "" }) => (
+  <div className={className} style={{ ...card, ...style }}>
+    {children}
+  </div>
+);
+const Btn = ({ children, onClick, v = "primary", variant, disabled = false, full = false, style = {}, ...rest }) => {
+  const tone = variant || v;
   const vs = {
     primary: { background: "var(--accent,#5b8def)", color: "#fff" },
     outline: { background: "transparent", color: "var(--accent,#5b8def)", border: "1px solid var(--accent,#5b8def)" },
@@ -40,11 +48,12 @@ const Btn = ({ children, onClick, v = "primary", disabled = false, full = false 
   };
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ ...vs[v], padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+      style={{ ...vs[tone], padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
         cursor: "pointer", border: "none", opacity: disabled ? .5 : 1,
-        width: full ? "100%" : "auto", ...vs[v] }}
+        width: full ? "100%" : "auto", ...vs[tone], ...style }}
       onMouseEnter={e => { if (!disabled) e.currentTarget.style.filter = "brightness(1.1)"; }}
       onMouseLeave={e => { e.currentTarget.style.filter = ""; }}
+      {...rest}
     >{children}</button>
   );
 };
@@ -67,13 +76,72 @@ const Badge = ({ label, c = "accent" }) => {
     padding: "2px 9px", borderRadius: 99, letterSpacing: ".5px", textTransform: "uppercase" }}>{label}</span>;
 };
 
-const API = typeof import.meta !== "undefined" ? (import.meta.env?.VITE_API_URL || "http://localhost:5000") : "http://localhost:5000";
+const ENV_API_BASE_URL = typeof import.meta !== "undefined" ? (import.meta.env?.VITE_API_URL || "") : "";
+const IS_VITE_DEV = typeof import.meta !== "undefined" && !!import.meta.env && !!import.meta.env.DEV;
+const IS_GITHUB_FORWARDED_HOST = typeof window !== "undefined" && /\.app\.github\.dev$/.test(window.location.hostname);
+const INFERRED_GITHUB_API_BASE_URL = IS_GITHUB_FORWARDED_HOST
+  ? `${window.location.protocol}//${window.location.hostname.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev")}/api`
+  : "";
+const isLocalApiUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
+
+let API = "/api";
+if (IS_VITE_DEV) {
+  API = "/api";
+} else if (IS_GITHUB_FORWARDED_HOST) {
+  API = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : API);
+} else {
+  API = (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL)) ? ENV_API_BASE_URL : API;
+}
+const DEMO_STUDENT_EMAILS = new Set([
+  "student1@gmail.com",
+  "student2@gmail.com",
+  "student3@gmail.com",
+  "student4@gmail.com",
+  "student5@gmail.com",
+]);
 const token = () => localStorage.getItem("jwt_token");
-const apiFetch = (path, opts = {}) =>
-  fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}`, ...opts.headers },
-    ...opts,
-  }).then(r => r.json());
+const parseResponse = async (response) => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+const apiFetch = async (path, opts = {}) => {
+  try {
+    const tk = token();
+    const authHdr = tk ? { Authorization: `Bearer ${tk}` } : {};
+    const response = await fetch(`${API}${path}`, {
+      headers: { "Content-Type": "application/json", ...authHdr, ...opts.headers },
+      ...opts,
+    });
+    const data = await parseResponse(response);
+    if (!response.ok) {
+      const message = data && typeof data === "object" && data.error ? data.error : `API error: ${response.status}`;
+      return { error: message, status: response.status, data };
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return { error: "Cannot reach backend API. Check backend/server availability and API URL settings." };
+    }
+    return { error: error.message || "Failed to fetch" };
+  }
+};
+
+const isDemoStudent = (student) => DEMO_STUDENT_EMAILS.has(String(student?.email || "").toLowerCase());
+const visibleStudents = (rows) => (Array.isArray(rows) ? rows.filter((student) => !isDemoStudent(student)) : []);
 
 /* ═══════════════════════════════════════════════════════
    1.  ADMIN — ADD STUDENT
@@ -86,7 +154,7 @@ export const AdminAddStudent = ({ onCreated }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    apiFetch("/api/plans/").then(d => setPlans(Array.isArray(d) ? d : []));
+    apiFetch("/plans/").then(d => setPlans(Array.isArray(d) ? d : []));
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -94,7 +162,7 @@ export const AdminAddStudent = ({ onCreated }) => {
   const submit = async () => {
     setError(""); setLoading(true);
     try {
-      const res = await apiFetch("/api/students/", {
+      const res = await apiFetch("/students/", {
         method: "POST",
         body: JSON.stringify({ ...form, plan_id: form.plan_id || undefined }),
       });
@@ -173,8 +241,8 @@ export const LiveSessionsPage = ({ user }) => {
   const [tab, setTab] = useState("upcoming");
 
   useEffect(() => {
-    apiFetch("/api/sessions/").then(d => setSessions(Array.isArray(d) ? d : []));
-    apiFetch("/api/sessions/recordings").then(d => setRecordings(Array.isArray(d) ? d : []));
+    apiFetch("/sessions/").then(d => setSessions(Array.isArray(d) ? d : []));
+    apiFetch("/sessions/recordings").then(d => setRecordings(Array.isArray(d) ? d : []));
   }, []);
 
   const upcoming = sessions.filter(s => s.status !== "ended");
@@ -359,6 +427,43 @@ const QuizRunner = ({ quiz, onDone }) => {
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);
   const [result, setResult] = useState(null);
+  const [aiCoach, setAiCoach] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  useEffect(() => {
+    if (!finished || !result || aiCoach || aiLoading) return;
+    const weakPoints = Array.isArray(result.results)
+      ? result.results
+          .filter((item) => item.your_answer !== item.correct_answer)
+          .slice(0, 3)
+          .map((item) => item.question)
+      : [];
+
+    setAiLoading(true);
+    setAiError("");
+    apiFetch("/ai/quiz/analyze", {
+      method: "POST",
+      body: JSON.stringify({
+        quiz_title: quiz.title,
+        category: quiz.category,
+        score: result.score,
+        correct: result.correct,
+        total: result.total,
+        weak_points: weakPoints,
+      }),
+    })
+      .then((res) => {
+        if (res?.error) {
+          setAiError(res.error);
+          setAiCoach(null);
+        } else {
+          setAiCoach(res);
+        }
+      })
+      .catch((error) => setAiError(error.message || "AI coach failed."))
+      .finally(() => setAiLoading(false));
+  }, [finished, result, aiCoach, aiLoading, quiz.title, quiz.category]);
 
   if (questions.length === 0) return (
     <div style={{ ...card, textAlign: "center", padding: 40 }}>
@@ -413,6 +518,29 @@ const QuizRunner = ({ quiz, onDone }) => {
           )}
         </div>
       ))}
+      <div style={{ ...card, marginTop: 12, background: "rgba(91,141,239,.08)", border: "1px solid rgba(91,141,239,.24)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontWeight: 700 }}>AI Quiz Coach</div>
+          {aiCoach && <Badge label={`Band ${aiCoach.band_estimate}`} c="success" />}
+        </div>
+        {aiLoading && <div style={{ fontSize: 12, color: "var(--muted2,#7b849c)" }}>Building your improvement plan…</div>}
+        {aiError && <div style={{ fontSize: 12, color: "var(--danger,#f87171)" }}>{aiError}</div>}
+        {aiCoach && (
+          <div>
+            <div style={{ fontSize: 12, color: "var(--muted2,#7b849c)", marginBottom: 8 }}>
+              Accuracy {aiCoach.analysis.accuracy}% · {aiCoach.analysis.correct}/{aiCoach.analysis.total} correct
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Strengths</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--text)" }}>
+              {aiCoach.analysis.strengths.map((item, index) => <li key={index} style={{ marginBottom: 4 }}>{item}</li>)}
+            </ul>
+            <div style={{ fontWeight: 600, fontSize: 13, marginTop: 12, marginBottom: 8 }}>Next steps</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--text)" }}>
+              {aiCoach.analysis.suggestions.map((item, index) => <li key={index} style={{ marginBottom: 4 }}>{item}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
       <Btn onClick={onDone} style={{ marginTop: 10 }}>Back to Quizzes</Btn>
     </div>
   );
@@ -526,20 +654,20 @@ export const AdminSessionsMgr = () => {
   const [recForm, setRecForm] = useState({ session_id: null, title: "", url: "", duration_min: "" });
 
   useEffect(() => {
-    apiFetch("/api/sessions/").then(d => setSessions(Array.isArray(d) ? d : []));
-    apiFetch("/api/batches/").then(d => setBatches(Array.isArray(d) ? d : []));
+    apiFetch("/sessions/").then(d => setSessions(Array.isArray(d) ? d : []));
+    apiFetch("/batches/").then(d => setBatches(Array.isArray(d) ? d : []));
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setR = (k, v) => setRecForm(f => ({ ...f, [k]: v }));
 
   const createSession = async () => {
-    const res = await apiFetch("/api/sessions/", { method: "POST", body: JSON.stringify(form) });
+    const res = await apiFetch("/sessions/", { method: "POST", body: JSON.stringify(form) });
     if (!res.error) { setSessions(ss => [res, ...ss]); setShowNew(false); }
   };
 
   const addRecording = async () => {
-    const res = await apiFetch(`/api/sessions/${recForm.session_id}/recording`, {
+    const res = await apiFetch(`/sessions/${recForm.session_id}/recording`, {
       method: "POST", body: JSON.stringify(recForm),
     });
     if (!res.error) {
@@ -647,29 +775,62 @@ export const AdminResourcesMgr = () => {
   const [resources, setResources] = useState([]);
   const [form, setForm] = useState({ title: "", category: "general", type: "link", url: "", description: "" });
   const [showNew, setShowNew] = useState(false);
+  const [scrapeMsg, setScrapeMsg] = useState("");
 
   useEffect(() => {
-    apiFetch("/api/resources/").then(d => setResources(Array.isArray(d) ? d : []));
+    apiFetch("/resources/").then(d => setResources(Array.isArray(d) ? d : []));
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const create = async () => {
-    const res = await apiFetch("/api/resources/", { method: "POST", body: JSON.stringify(form) });
+    const res = await apiFetch("/resources/", { method: "POST", body: JSON.stringify(form) });
     if (!res.error) { setResources(rs => [res, ...rs]); setShowNew(false); setForm({ title:"",category:"general",type:"link",url:"",description:"" }); }
   };
 
   const del = async (id) => {
-    await apiFetch(`/api/resources/${id}`, { method: "DELETE" });
+    await apiFetch(`/resources/${id}`, { method: "DELETE" });
     setResources(rs => rs.filter(r => r.id !== id));
+  };
+
+  const importPublicResources = async () => {
+    setScrapeMsg("Importing public IELTS resources…");
+    try {
+      const res = await apiFetch("/resources/scrape/seed", { method: "POST" });
+      const imported = Array.isArray(res?.imported) ? res.imported : [];
+      if (imported.length) {
+        setResources((current) => {
+          const merged = [...imported, ...current];
+          const seen = new Set();
+          return merged.filter((item) => {
+            if (seen.has(item.url)) return false;
+            seen.add(item.url);
+            return true;
+          });
+        });
+        setScrapeMsg(`Imported ${imported.length} public resources.`);
+      } else {
+        setScrapeMsg("No public resources were imported.");
+      }
+    } catch (error) {
+      setScrapeMsg(error.message || "Import failed.");
+    }
   };
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <div style={{ fontFamily: "'Lora',serif", fontSize: 21, fontWeight: 700 }}>Resources</div>
-        <Btn onClick={() => setShowNew(n => !n)}>+ Add Resource</Btn>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <Btn variant="outline" onClick={importPublicResources}>Import Public IELTS Resources</Btn>
+          <Btn onClick={() => setShowNew(n => !n)}>+ Add Resource</Btn>
+        </div>
       </div>
+      {scrapeMsg && (
+        <Card style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.25)", background: "rgba(20,108,114,.06)" }}>
+          {scrapeMsg}
+        </Card>
+      )}
       {showNew && (
         <div style={{ ...card, marginBottom: 18, border: "1px solid var(--accent,#5b8def)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -723,7 +884,7 @@ export const AdminQuizBuilder = () => {
   ]);
 
   useEffect(() => {
-    apiFetch("/api/quizzes/").then(d => setQuizzes(Array.isArray(d) ? d : []));
+    apiFetch("/quizzes/").then(d => setQuizzes(Array.isArray(d) ? d : []));
   }, []);
 
   const setM = (k, v) => setMeta(m => ({ ...m, [k]: v }));
@@ -734,7 +895,7 @@ export const AdminQuizBuilder = () => {
   const removeQ = (qi) => setQuestions(qs => qs.filter((_, i) => i !== qi));
 
   const save = async () => {
-    const res = await apiFetch("/api/quizzes/", {
+    const res = await apiFetch("/quizzes/", {
       method: "POST",
       body: JSON.stringify({ ...meta, questions: questions.map(q => ({ ...q, correct: parseInt(q.correct) })) }),
     });

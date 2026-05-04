@@ -57,8 +57,28 @@ def create_plan():
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
-    data = request.get_json()
-    plan = Plan(**data)
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+      return jsonify({'error': 'name is required'}), 400
+
+    duration_days = data.get('duration_days')
+    if duration_days is None:
+      return jsonify({'error': 'duration_days is required'}), 400
+    try:
+      duration_days = int(duration_days)
+    except (TypeError, ValueError):
+      return jsonify({'error': 'duration_days must be an integer'}), 400
+    if duration_days <= 0:
+      return jsonify({'error': 'duration_days must be greater than 0'}), 400
+
+    plan_data = {
+      'name': name,
+      'duration_days': duration_days,
+      'session_type': data.get('session_type', 'solo'),
+      'description': data.get('description', ''),
+    }
+    plan = Plan(**plan_data)
     db.session.add(plan)
     db.session.commit()
     return jsonify(plan.to_dict()), 201
@@ -93,7 +113,9 @@ def assign_plan():
     user = User.query.get(uid)
     if user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    if not data.get('student_id') or not data.get('plan_id'):
+      return jsonify({'error': 'student_id and plan_id are required'}), 400
     StudentPlan.query.filter_by(student_id=data['student_id'], is_active=True).update({'is_active': False})
     sp = StudentPlan(
         student_id=data['student_id'],
@@ -151,6 +173,8 @@ def select_plan():
         f"Description: {plan.description or 'N/A'}\n"
         f"Selected On: {datetime.date.today().isoformat()}\n"
     )
-    send_email(subject, body, current_app.config.get('ADMIN_APPROVER_EMAIL'), current_app.config)
+    admin_email = current_app.config.get('ADMIN_APPROVER_EMAIL')
+    if admin_email:
+        send_email(subject, body, admin_email, current_app.config)
 
     return jsonify({'message': 'Plan selected successfully', 'student_plan': sp.to_dict(), 'plan': plan.to_dict()}), 201

@@ -57,7 +57,7 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """
-    Login user and get JWT token
+    Login user and get JWT tokenssss
     ---
     tags:
       - Authentication
@@ -99,6 +99,12 @@ def login():
       ).order_by(LoginRequest.created_at.desc()).first()
 
       if not approved_request:
+        admin_email = current_app.config.get('ADMIN_APPROVER_EMAIL')
+        if not admin_email:
+          return jsonify({
+            'error': 'Student login approval is enabled but ADMIN_APPROVER_EMAIL is not configured.',
+          }), 503
+
         # Reuse active pending request when available to avoid spamming.
         pending = LoginRequest.query.filter(
           LoginRequest.email == user.email,
@@ -126,7 +132,7 @@ def login():
           f"{approve_url}\n\n"
           "This approval expires in 20 minutes."
         )
-        send_email(subject, body, current_app.config.get('ADMIN_APPROVER_EMAIL'), current_app.config)
+        send_email(subject, body, admin_email, current_app.config)
         return jsonify({
           'error': 'Login requires admin approval. Approval link sent to admin email.',
           'needs_approval': True,
