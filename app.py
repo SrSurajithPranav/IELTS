@@ -105,6 +105,11 @@ def create_app(config_name=None):
     app.register_blueprint(resources_bp)
     app.register_blueprint(ai_bp)
     
+    # Root health check – required by Render's free-tier uptime pinger
+    @app.route('/', methods=['GET'])
+    def root():
+        return {'status': 'healthy'}, 200
+
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
     def health():
