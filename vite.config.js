@@ -1,7 +1,5 @@
 import { defineConfig } from 'vite'
 
-// Vite dev server proxy configuration: forward /api to backend
-// This makes browser requests same-origin and avoids CORS issues
 export default defineConfig({
   server: {
     proxy: {
@@ -12,5 +10,24 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
+  },
+  build: {
+    target: 'es2020',
+    minify: 'terser',
+    sourcemap: false,
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom']
+        }
+      }
+    }
+  },
+  preview: {
+    port: 4173,
+    strictPort: false
   }
 })

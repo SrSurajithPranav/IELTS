@@ -1,0 +1,46 @@
+name: Deploy Backend to Render
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app.py'
+      - 'wsgi.py'
+      - 'config.py'
+      - 'requirements.txt'
+      - 'Procfile'
+      - 'routes/**'
+      - 'models/**'
+      - 'utils/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Render deployment
+        run: |
+          curl -X POST \
+            -H "accept: application/json" \
+            -H "authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys \
+            -d '{"clearCache":"do_not_clear_cache"}'
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -f ${{ secrets.RENDER_HEALTH_CHECK_URL }}; then
+              echo "✓ Backend is healthy"
+              exit 0
+            fi
+            echo "Attempt $i/10 - waiting for backend to be ready..."
+            sleep 10
+          done
+          echo "✗ Backend failed health check"
+          exit 1

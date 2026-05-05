@@ -91,6 +91,12 @@ def create_app(config_name=None):
         if auth and not auth.lower().startswith('bearer '):
             request.environ['HTTP_AUTHORIZATION'] = f'Bearer {auth}'
     
+    # Health check endpoints
+    @app.route('/', methods=['GET'])
+    def root_health():
+        """Root health check for platform health checks"""
+        return {'status': 'ok', 'service': 'ielts-api'}, 200
+    
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
@@ -292,4 +298,5 @@ def create_app(config_name=None):
 if __name__ == '__main__':
     app = create_app()
     debug = os.getenv('FLASK_DEBUG', '0').lower() in {'1', 'true', 'yes'}
-    app.run(debug=debug, use_reloader=debug, host='0.0.0.0', port=5000)
+    port = int(os.getenv('PORT', 5000))
+    app.run(debug=debug, use_reloader=debug, host='0.0.0.0', port=port)

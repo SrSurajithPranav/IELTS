@@ -67,15 +67,14 @@ const AuthCtx = createContext(null);
 // ─────────────────────────────────────────────
 // API CONFIGURATION
 // ─────────────────────────────────────────────
-const ENV_API_BASE_URL =
-  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
-  (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ||
-  "";
 
-// If running under Vite dev server, prefer a relative `/api` path so the dev-server
-// proxy (vite.config.js) forwards requests to the backend and avoids CORS.
-const IS_VITE_DEV = typeof import.meta !== "undefined" && !!import.meta.env && !!import.meta.env.DEV;
+// Try to get API URL from Vite environment variables
+const ENV_API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// Detect if running in Vite dev mode
+const IS_VITE_DEV = import.meta.env.DEV;
+
+// Detect GitHub Codespaces forwarded ports
 const IS_GITHUB_FORWARDED_HOST =
   typeof window !== "undefined" && /\.app\.github\.dev$/.test(window.location.hostname);
 
@@ -94,14 +93,27 @@ const isLocalApiUrl = (value) => {
   }
 };
 
+// Determine API base URL with priority:
+// 1. Vite dev mode → use relative path (proxied by dev server)
+// 2. GitHub Codespaces → infer from forwarded host
+// 3. Environment variable → use if provided and not localhost
+// 4. Same-origin relative path → fallback
 let API_BASE_URL = "/api";
+
 if (IS_VITE_DEV) {
+  // In dev mode, use relative path - vite.config.js proxies it
   API_BASE_URL = "/api";
 } else if (IS_GITHUB_FORWARDED_HOST) {
-  API_BASE_URL = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : API_BASE_URL);
+  // GitHub Codespaces: clever host inference
+  API_BASE_URL = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : "/api");
+} else if (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL)) {
+  // Use environment variable if it's not a localhost URL
+  API_BASE_URL = ENV_API_BASE_URL;
 } else {
-  API_BASE_URL = (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL)) ? ENV_API_BASE_URL : API_BASE_URL;
+  // Fallback to relative path
+  API_BASE_URL = "/api";
 }
+
 const API_TIMEOUT = 10000;
 
 const parseJsonSafely = async (response) => {
