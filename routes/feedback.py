@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.db import db
 from models.submission import Submission
 from models.user import User
+from models.notification import Notification
 from utils.storage import upload_audio
 import datetime
 
@@ -46,5 +47,15 @@ def give_feedback(submission_id):
     sub.reviewed_at = datetime.datetime.utcnow()
     if 'audio' in request.files:
         sub.feedback_audio_url = upload_audio(request.files['audio'], folder='feedback')
+
+    task_title = sub.task.title if sub.task else f'Task #{sub.task_id}'
+    notif = Notification(
+      user_id=sub.student_id,
+      title='Feedback received',
+      body=f'Your teacher reviewed "{task_title}". Open your submission to see details.',
+      type='feedback'
+    )
+    db.session.add(notif)
+
     db.session.commit()
     return jsonify(sub.to_dict())

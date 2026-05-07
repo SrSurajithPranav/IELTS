@@ -3,10 +3,24 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.db import db
 from models.task import Task
 from models.student_plan import StudentPlan
+from models.plan import Plan
 from models.user import User
 from datetime import date
 
 tasks_bp = Blueprint('tasks', __name__)
+
+
+def _current_task_day(sp: StudentPlan) -> int:
+  """
+  Calculate which task-day to show today.
+  Solo plans: sessions every 2 calendar days -> task_day = ceil(calendar_days / 2)
+  Group plans: daily -> task_day = calendar_days
+  """
+  calendar_days = (date.today() - sp.start_date).days + 1
+  plan = Plan.query.get(sp.plan_id)
+  if plan and plan.session_type == 'solo':
+    return max(1, (calendar_days + 1) // 2)
+  return max(1, calendar_days)
 
 @tasks_bp.route('/today', methods=['GET'])
 @jwt_required()
@@ -27,10 +41,10 @@ def today_tasks():
     uid = int(get_jwt_identity())
     sp = StudentPlan.query.filter_by(student_id=uid, is_active=True).first()
     if not sp:
-        return jsonify({'tasks': [], 'day': 0})
-    delta = (date.today() - sp.start_date).days + 1
-    tasks = Task.query.filter_by(plan_id=sp.plan_id, day_number=delta).all()
-    return jsonify({'tasks': [t.to_dict() for t in tasks], 'day': delta})
+      return jsonify({'tasks': [], 'day': 0, 'message': 'No active plan. Ask your teacher to assign one.'})
+    day = _current_task_day(sp)
+    tasks = Task.query.filter_by(plan_id=sp.plan_id, day_number=day).all()
+    return jsonify({'tasks': [t.to_dict() for t in tasks], 'day': day})
 
 @tasks_bp.route('/day/<int:day>', methods=['GET'])
 @jwt_required()

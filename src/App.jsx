@@ -64,55 +64,57 @@ const GlobalStyles = () => (
 // ─────────────────────────────────────────────
 const AuthCtx = createContext(null);
 
-// ─────────────────────────────────────────────
-// API CONFIGURATION
-// ─────────────────────────────────────────────
+// ─── API URL Resolution ───────────────────────────────────────────────
+// Priority:
+//  1. VITE_API_URL env var (set in .env.local for deployed backend)
+//  2. GitHub Codespaces: auto-detect the backend port URL
+//  3. Dev mode (npm run dev): use Vite proxy → relative /api
+//  4. Fallback: relative /api
 
-// Try to get API URL from Vite environment variables
-const ENV_API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const ENV_API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim();
 
-// Detect if running in Vite dev mode
-const IS_VITE_DEV = import.meta.env.DEV;
+const _host = typeof window !== "undefined" ? window.location.hostname : "";
+const IS_CODESPACES = /\.app\.github\.dev$/.test(_host);
+const IS_VITE_DEV   = import.meta.env.DEV;
 
-// Detect GitHub Codespaces forwarded ports
-const IS_GITHUB_FORWARDED_HOST =
-  typeof window !== "undefined" && /\.app\.github\.dev$/.test(window.location.hostname);
-
-const INFERRED_GITHUB_API_BASE_URL =
-  IS_GITHUB_FORWARDED_HOST
-    ? `${window.location.protocol}//${window.location.hostname.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev")}/api`
-    : "";
-
-const isLocalApiUrl = (value) => {
-  if (typeof value !== "string" || !value.trim()) return false;
-  try {
-    const parsed = new URL(value);
-    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-  } catch {
-    return false;
+function _resolveApiBase() {
+  // Explicit env var always wins (for deployed / production)
+  if (ENV_API_BASE_URL && !ENV_API_BASE_URL.includes("localhost") && !ENV_API_BASE_URL.includes("127.0.0.1")) {
+    return ENV_API_BASE_URL.replace(/\/$/, "") + (ENV_API_BASE_URL.endsWith("/api") ? "" : "/api");
   }
-};
-
-// Determine API base URL with priority:
-// 1. Vite dev mode → use relative path (proxied by dev server)
-// 2. GitHub Codespaces → infer from forwarded host
-// 3. Environment variable → use if provided and not localhost
-// 4. Same-origin relative path → fallback
-let API_BASE_URL = "/api";
-
-if (IS_VITE_DEV) {
-  // In dev mode, use relative path - vite.config.js proxies it
-  API_BASE_URL = "/api";
-} else if (IS_GITHUB_FORWARDED_HOST) {
-  // GitHub Codespaces: clever host inference
-  API_BASE_URL = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : "/api");
-} else if (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL)) {
-  // Use environment variable if it's not a localhost URL
-  API_BASE_URL = ENV_API_BASE_URL;
-} else {
-  // Fallback to relative path
-  API_BASE_URL = "/api";
+  // Codespaces: swap current port to 5000 in the forwarded hostname
+  if (IS_CODESPACES) {
+    const backendHost = _host.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev");
+    return `${window.location.protocol}//${backendHost}/api`;
+  }
+  // Vite dev server proxies /api → localhost:5000 via vite.config.js
+  return "/api";
 }
+
+let API_BASE_URL = _resolveApiBase();
+
+// ─── Dev-only debug banner ────────────────────────────────────────────
+const DebugBanner = () => {
+  const [status, setStatus] = React.useState("checking");
+  React.useEffect(() => {
+    fetch(`${API_BASE_URL}/health`)
+      .then(r => r.ok ? setStatus("ok") : setStatus("error"))
+      .catch(() => setStatus("error"));
+  }, []);
+  if (!import.meta.env.DEV) return null;
+  return (
+    <div style={{
+      position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998,
+      background: status === "ok" ? "rgba(52,211,153,.9)" : "rgba(239,68,68,.9)",
+      color: "#000", fontSize: 11, fontWeight: 600, padding: "3px 12px",
+      display: "flex", gap: 12, alignItems: "center"
+    }}>
+      <span>{status === "ok" ? "✓ Backend connected" : "✗ Backend unreachable"}</span>
+      <span style={{opacity:.7}}>API: {API_BASE_URL}</span>
+      {status === "error" && <span>→ Make sure Flask is running on port 5000, and port is set to Public in Codespaces</span>}
+    </div>
+  );
+};
 
 const API_TIMEOUT = 10000;
 
@@ -2763,6 +2765,7 @@ export default function App() {
   return (
     <>
       <GlobalStyles />
+      <DebugBanner />
       <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar page={page} setPage={setPage} user={user} onLogout={handleLogout} />
         <main style={{ marginLeft: "var(--sidebar-w)", flex: 1, padding: "32px 32px 32px", minHeight: "100vh", overflowY: "auto" }}>

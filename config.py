@@ -14,7 +14,8 @@ class Config:
     CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET')
 
     # Login approval + email notifications
-    REQUIRE_LOGIN_APPROVAL = os.getenv('REQUIRE_LOGIN_APPROVAL', 'true').lower() == 'true'
+    # Default OFF — easier developer experience and Codespaces testing
+    REQUIRE_LOGIN_APPROVAL = os.getenv('REQUIRE_LOGIN_APPROVAL', 'false').lower() == 'true'
     ADMIN_APPROVER_EMAIL = os.getenv('ADMIN_APPROVER_EMAIL')
     FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
     BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
@@ -33,6 +34,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
+    REQUIRE_LOGIN_APPROVAL = False
 
 class TestingConfig(Config):
     """Testing configuration."""

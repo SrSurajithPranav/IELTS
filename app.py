@@ -28,6 +28,9 @@ from routes.students import students_bp
 from routes.sessions import sessions_bp
 from routes.quizzes import quizzes_bp, resources_bp
 from routes.ai import ai_bp
+from routes.leaderboard import leaderboard_bp
+from routes.notifications import notifs_bp
+from models.notification import Notification
 from models.session import LiveSession, SessionRecording
 from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
@@ -90,6 +93,15 @@ def create_app(config_name=None):
         auth = request.headers.get('Authorization', '').strip()
         if auth and not auth.lower().startswith('bearer '):
             request.environ['HTTP_AUTHORIZATION'] = f'Bearer {auth}'
+
+    uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    from flask import send_from_directory
+
+    @app.route('/uploads/<path:filename>')
+    def serve_upload(filename):
+        return send_from_directory(uploads_dir, filename)
     
     # Health check endpoints
     @app.route('/', methods=['GET'])
@@ -110,6 +122,8 @@ def create_app(config_name=None):
     app.register_blueprint(quizzes_bp)
     app.register_blueprint(resources_bp)
     app.register_blueprint(ai_bp)
+    app.register_blueprint(leaderboard_bp)
+    app.register_blueprint(notifs_bp)
     
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
