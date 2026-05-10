@@ -1,5 +1,10 @@
+push , commit everything to main branch 
 import { LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import ThemeToggle from "./components/ThemeToggle";
+import AnnouncementBanner from "./components/AnnouncementBanner";
+import VocabularyPage from "./pages/VocabularyPage";
 
 // ─────────────────────────────────────────────
 // GLOBAL STYLES
@@ -434,6 +439,40 @@ const ProgressBar = ({ pct, color = "var(--accent)", height = 6 }) => (
   </div>
 );
 
+const BandHistoryChart = ({ studentId }) => {
+  const [points, setPoints] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const subs = await submissionsAPI.getStudentSubs(studentId);
+        const bands = (subs || []).map(s => ({ date: s.created_at || s.date, band: s.band_estimate || s.band_estimate || null })).filter(x => x.band != null);
+        // take last 12
+        const last = bands.slice(-12);
+        setPoints(last);
+      } catch (e) { setPoints([]); }
+    })();
+  }, [studentId]);
+
+  if (!points || points.length === 0) return <div style={{ fontSize: 13, color: "var(--muted)" }}>No band history yet</div>;
+  const maxBand = Math.max(...points.map(p => Number(p.band)));
+  const minBand = Math.min(...points.map(p => Number(p.band)));
+  const w = 420, h = 120, pad = 12;
+  const dx = (w - pad * 2) / Math.max(1, points.length - 1);
+  const mapY = (v) => {
+    if (maxBand === minBand) return h/2;
+    return pad + (1 - (v - minBand) / (maxBand - minBand)) * (h - pad * 2);
+  };
+  const path = points.map((p, i) => `${i===0?'M':'L'} ${pad + i*dx} ${mapY(p.band)}`).join(' ');
+  return (
+    <svg width={w} height={h} style={{ background: 'transparent' }}>
+      <path d={path} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p,i) => (
+        <circle key={i} cx={pad + i*dx} cy={mapY(p.band)} r={4} fill="var(--card)" stroke="var(--accent)" />
+      ))}
+    </svg>
+  );
+};
+
 const Spinner = () => (
   <div style={{ width: 22, height: 22, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
 );
@@ -472,6 +511,7 @@ const Btn = ({ children, onClick, variant = "primary", size = "md", disabled = f
 const Sidebar = ({ page, setPage, user, onLogout }) => {
   const studentNav = [
     { id: "dashboard",    icon: "⊞",  label: "Dashboard" },
+    { id: "vocabulary",   icon: "📓", label: "Vocabulary" },
     { id: "plans",        icon: "💼", label: "Plans" },
     { id: "tasks",        icon: "✓",  label: "Today's Tasks" },
     { id: "speaking",     icon: "🎧", label: "Speaking" },
@@ -498,6 +538,7 @@ const Sidebar = ({ page, setPage, user, onLogout }) => {
   const nav = user?.role === "admin" ? adminNav : studentNav;
 
   return (
+    <>
     <aside style={{
       width: "var(--sidebar-w)", background: "var(--bg2)", borderRight: "1px solid var(--border)",
       height: "100vh", position: "fixed", left: 0, top: 0, display: "flex", flexDirection: "column",
@@ -827,6 +868,8 @@ const StudentDashboard = ({ user }) => {
         <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 4 }}>Today's tasks and feedback are loaded from your active plan.</p>
       </div>
 
+      <AnnouncementBanner />
+
       {/* Stats row */}
       <div className="fade-up-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 14 }}>
         {stats.map((s, i) => (
@@ -856,6 +899,13 @@ const StudentDashboard = ({ user }) => {
           ))}
         </div>
       </Card>
+
+      {completed === total && total > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Badge label="Perfect Day" color="gold" />
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>You completed all tasks today — great job!</div>
+        </div>
+      )}
 
       {/* Recent feedback */}
       <Card className="fade-up-4">
@@ -976,11 +1026,14 @@ const SpeakingPage = ({ user }) => {
     if (!SR) {
       setSpeechSupported(false);
       return;
+        <>
+        <aside style={{
     }
 
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
+        </>
     recognition.lang = "en-US";
 
     recognition.onresult = (event) => {
@@ -1447,6 +1500,11 @@ const ProgressPage = ({ user }) => {
             </div>
           </div>
         </div>
+      </Card>
+
+      <Card style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Band Score History</div>
+        <BandHistoryChart studentId={user.id} />
       </Card>
 
       {/* Weak Areas */}
@@ -2731,6 +2789,7 @@ export default function App() {
 
   const studentPages = {
     dashboard: <StudentDashboard user={user} />,
+    vocabulary: <VocabularyPage user={user} />,
     plans:     <StudentPlansPage user={user} />,
     tasks:     <TasksPage user={user} />,
     speaking:  <SpeakingPage user={user} />,
@@ -2763,7 +2822,7 @@ export default function App() {
   };
 
   return (
-    <>
+    <ThemeProvider>
       <GlobalStyles />
       <DebugBanner />
       <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -2774,6 +2833,7 @@ export default function App() {
           </div>
         </main>
       </div>
+      <ThemeToggle />
       <button
         onClick={openQuickMeet}
         title="Start a quick meet"
@@ -2796,6 +2856,6 @@ export default function App() {
       >
         🎥
       </button>
-    </>
+    </ThemeProvider>
   );
 }

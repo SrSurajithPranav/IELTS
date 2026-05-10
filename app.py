@@ -15,21 +15,6 @@ from models.student_plan import StudentPlan
 from models.submission import Submission
 from models.batch import Batch, BatchMember
 from models.login_request import LoginRequest
-
-# Import blueprints
-from routes.auth import auth_bp
-from routes.tasks import tasks_bp
-from routes.submissions import submissions_bp
-from routes.feedback import feedback_bp
-from routes.plans import plans_bp
-from routes.users import users_bp
-from routes.batches import batches_bp
-from routes.students import students_bp
-from routes.sessions import sessions_bp
-from routes.quizzes import quizzes_bp, resources_bp
-from routes.ai import ai_bp
-from routes.leaderboard import leaderboard_bp
-from routes.notifications import notifs_bp
 from models.notification import Notification
 from models.session import LiveSession, SessionRecording
 from models.quiz import Quiz, QuizQuestion, QuizAttempt
@@ -47,6 +32,10 @@ def create_app(config_name=None):
     db.init_app(app)
     JWTManager(app)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # Rate limiter
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    limiter = Limiter(key_func=get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
     
     # Initialize Swagger UI with proper config
     swagger_config = {
@@ -109,7 +98,27 @@ def create_app(config_name=None):
         """Root health check for platform health checks"""
         return {'status': 'ok', 'service': 'ielts-api'}, 200
     
-    # Register blueprints
+    # Import and register blueprints (moved here so limiter is available)
+    from routes.auth import auth_bp
+    from routes.tasks import tasks_bp
+    from routes.submissions import submissions_bp
+    from routes.feedback import feedback_bp
+    from routes.plans import plans_bp
+    from routes.users import users_bp
+    from routes.batches import batches_bp
+    from routes.students import students_bp
+    from routes.sessions import sessions_bp
+    from routes.quizzes import quizzes_bp, resources_bp
+    from routes.ai import ai_bp
+    from routes.leaderboard import leaderboard_bp
+    from routes.notifications import notifs_bp
+    from routes.announcements import announcements_bp
+    from routes.vocabulary import vocabulary_bp
+    from routes.speaking import speaking_bp
+    from routes.attendance import attendance_bp
+    from routes.mistakes import mistakes_bp
+    from routes.bookings import bookings_bp
+
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
     app.register_blueprint(submissions_bp, url_prefix='/api/submissions')
@@ -124,6 +133,20 @@ def create_app(config_name=None):
     app.register_blueprint(ai_bp)
     app.register_blueprint(leaderboard_bp)
     app.register_blueprint(notifs_bp)
+    app.register_blueprint(announcements_bp)
+    app.register_blueprint(vocabulary_bp)
+    app.register_blueprint(speaking_bp)
+    app.register_blueprint(attendance_bp)
+    app.register_blueprint(mistakes_bp)
+    app.register_blueprint(bookings_bp)
+
+    # Apply specific rate limit to login endpoint (10 per minute)
+    try:
+        login_view = app.view_functions.get('auth.login')
+        if login_view:
+            limiter.limit("10 per minute")(login_view)
+    except Exception:
+        pass
     
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
