@@ -360,7 +360,7 @@ export const QuizzesPage = () => {
   const [catFilter, setCatFilter] = useState("all");
 
   const loadQuizzes = async () => {
-    const url = catFilter === "all" ? "/api/quizzes/" : `/api/quizzes/?category=${catFilter}`;
+    const url = catFilter === "all" ? "/quizzes/" : `/quizzes/?category=${catFilter}`;
     const d = await apiFetch(url);
     setQuizzes(Array.isArray(d) ? d : []);
   };
@@ -399,7 +399,7 @@ export const QuizzesPage = () => {
         {quizzes.map(q => (
           <div key={q.id} style={{ ...card, cursor: "pointer" }}
             onClick={async () => {
-              const full = await apiFetch(`/api/quizzes/${q.id}`);
+              const full = await apiFetch(`/quizzes/${q.id}`);
               setActive(full);
             }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>{CAT_ICONS[q.category] || "📋"}</div>
@@ -483,7 +483,7 @@ const QuizRunner = ({ quiz, onDone }) => {
       setAnswers(newAnswers); setIdx(idx + 1); setSelected(null); setRevealed(false);
     } else {
       // submit
-      const res = await apiFetch(`/api/quizzes/${quiz.id}/attempt`, {
+      const res = await apiFetch(`/quizzes/${quiz.id}/attempt`, {
         method: "POST", body: JSON.stringify({ answers: newAnswers }),
       });
       setResult(res); setFinished(true);
@@ -600,7 +600,7 @@ export const ResourcesPage = () => {
   const RES_CATS = ["all", "speaking", "writing", "listening", "reading", "grammar", "vocab", "general"];
 
   useEffect(() => {
-    const url = catFilter === "all" ? "/api/resources/" : `/api/resources/?category=${catFilter}`;
+    const url = catFilter === "all" ? "/resources/" : `/resources/?category=${catFilter}`;
     apiFetch(url).then(d => setResources(Array.isArray(d) ? d : []));
   }, [catFilter]);
 

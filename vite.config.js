@@ -1,15 +1,17 @@
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  plugins: [react()],
   server: {
     port: 5173,
+    strictPort: true,   // Never silently switch ports — breaks the proxy
     host: true,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
       },
       '/uploads': {
         target: 'http://127.0.0.1:5000',
@@ -19,8 +21,8 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'es2020',
-    minify: 'esbuild',
+    target: 'esnext',
+    minify: 'terser',
     sourcemap: false,
     outDir: 'dist',
     assetsDir: 'assets',

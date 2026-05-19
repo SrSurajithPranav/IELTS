@@ -1,23 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { apiCall } from '../api';
+import React, { useState, useEffect } from 'react';
+import { announcementsAPI } from '../services/api';
 
 export default function AnnouncementBanner() {
-  const [ann, setAnn] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
+  const [dismissed, setDismissed] = useState([]);
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiCall('/announcements/');
-        if (Array.isArray(res) && res.length) setAnn(res[0]);
-      } catch (e) {
-        // ignore
-      }
-    })();
+    announcementsAPI.getAll()
+      .then((res) => setAnnouncements(Array.isArray(res) ? res : res?.announcements || []))
+      .catch(() => setAnnouncements([]));
   }, []);
-  if (!ann) return null;
+
+  const active = announcements.filter((a) => !dismissed.includes(a.id)).slice(0, 2);
+  if (active.length === 0) return null;
+
   return (
-    <div style={{ padding: 12, borderLeft: '4px solid #146c72', background: 'rgba(20,108,114,0.06)', margin: '12px 0', borderRadius: 8 }}>
-      <strong>📢 {ann.title}</strong>
-      <div style={{ marginTop: 6 }}>{ann.content}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 4 }}>
+      {active.map((a) => (
+        <div key={a.id} style={{
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+          padding: '12px 16px',
+          background: 'var(--accent-soft)',
+          border: '1px solid var(--accent-glow)',
+          borderRadius: 12,
+          fontSize: 13,
+          lineHeight: 1.5,
+          animation: 'fadeUp 0.4s ease both',
+        }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>📢</span>
+          <div style={{ flex: 1 }}>
+            {a.title && <strong style={{ display: 'block', marginBottom: 2, color: 'var(--accent)' }}>{a.title}</strong>}
+            <span style={{ color: 'var(--text)' }}>{a.content || a.message || ''}</span>
+          </div>
+          <button
+            onClick={() => setDismissed((d) => [...d, a.id])}
+            style={{
+              background: 'none', border: 'none', color: 'var(--muted)',
+              cursor: 'pointer', fontSize: 16, padding: 0, flexShrink: 0,
+            }}
+          >✕</button>
+        </div>
+      ))}
     </div>
   );
 }

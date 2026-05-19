@@ -27,11 +27,17 @@ def create_app(config_name=None):
     
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+    app.url_map.strict_slashes = False  # Prevent 308 redirects that drop Authorization header
     
     # Initialize extensions
     db.init_app(app)
     JWTManager(app)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app,
+         resources={r"/api/*": {"origins": "*"}},
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+         expose_headers=["Authorization"]
+    )
     # Rate limiter
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
@@ -165,6 +171,31 @@ def create_app(config_name=None):
     # Create tables
     with app.app_context():
         db.create_all()
+
+        # ── Seed default accounts so the app is usable on first run ──
+        from models.user import User
+
+        if not User.query.filter_by(email='teacher@ielts.com').first():
+            db.session.add(User(
+                name='Ms. Kavitha',
+                email='teacher@ielts.com',
+                password=generate_password_hash('teacher123'),
+                role='admin',
+                score=0,
+                streak=0,
+            ))
+
+        if not User.query.filter_by(email='student@ielts.com').first():
+            db.session.add(User(
+                name='Arjun Kumar',
+                email='student@ielts.com',
+                password=generate_password_hash('student123'),
+                role='student',
+                score=68,
+                streak=7,
+            ))
+
+        db.session.commit()
 
         if config_name == 'development':
             from models.user import User

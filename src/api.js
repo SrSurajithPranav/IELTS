@@ -1,13 +1,14 @@
 const ENV_API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim();
 const _host = typeof window !== "undefined" ? window.location.hostname : "";
-const IS_CODESPACES = \.app\.github\.dev$/.test(_host);
+const IS_CODESPACES = /\.app\.github\.dev$/.test(_host);
 
 function _resolveApiBase() {
-  if (ENV_API_BASE_URL && !ENV_API_BASE_URL.includes("localhost") && !ENV_API_BASE_URL.includes("127.0.0.1")) {
-    return ENV_API_BASE_URL.replace(/\/$/, "") + (ENV_API_BASE_URL.endsWith("/api") ? "" : "/api");
+  if (ENV_API_BASE_URL) {
+    const base = ENV_API_BASE_URL.replace(/\/$/, '');
+    return base.endsWith('/api') ? base : `${base}/api`;
   }
   if (IS_CODESPACES) {
-    const backendHost = _host.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev");
+    const backendHost = _host.replace(/-\d+\.app\.github\.dev$/, '-5000.app.github.dev');
     return `${window.location.protocol}//${backendHost}/api`;
   }
   return "/api";

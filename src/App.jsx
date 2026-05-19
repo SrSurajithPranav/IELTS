@@ -1,4 +1,4 @@
-push , commit everything to main branch 
+
 import { LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -538,7 +538,6 @@ const Sidebar = ({ page, setPage, user, onLogout }) => {
   const nav = user?.role === "admin" ? adminNav : studentNav;
 
   return (
-    <>
     <aside style={{
       width: "var(--sidebar-w)", background: "var(--bg2)", borderRight: "1px solid var(--border)",
       height: "100vh", position: "fixed", left: 0, top: 0, display: "flex", flexDirection: "column",
@@ -1026,14 +1025,11 @@ const SpeakingPage = ({ user }) => {
     if (!SR) {
       setSpeechSupported(false);
       return;
-        <>
-        <aside style={{
     }
 
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
-        </>
     recognition.lang = "en-US";
 
     recognition.onresult = (event) => {
@@ -1186,7 +1182,7 @@ const SpeakingPage = ({ user }) => {
           <div style={{ marginTop: 14, padding: 14, background: "var(--bg3)", borderRadius: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ fontWeight: 600 }}>AI Speaking Analysis</div>
-              <Badge label={`Band ${analysis.band_estimate}`} c="success" />
+              <Badge label={`Band ${analysis.band_estimate}`} color="success" />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, marginBottom: 10 }}>
               <div><div style={{ fontSize: 12, color: "var(--muted)" }}>Fluency</div><div style={{ fontWeight: 700 }}>{analysis.analysis.fluency_score}/100</div></div>
@@ -1566,21 +1562,7 @@ const ProgressPage = ({ user }) => {
         </div>
       </Card>
 
-      <Card className="fade-up-3">
-        <div style={{ fontWeight: 600, marginBottom: 14 }}>Your Writing History</div>
-        {subs.length === 0 ? (
-          <div style={{ fontSize: 13, color: "var(--muted)" }}>No writing submissions yet.</div>
-        ) : subs.map((s) => (
-          <div key={s.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <div style={{ fontWeight: 600 }}>Task #{s.task_id}</div>
-              <StatusBadge status={s.status} />
-            </div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>{new Date(s.submitted_at).toLocaleString()}</div>
-            {s.feedback_text && <div style={{ marginTop: 8, fontSize: 13, color: "var(--text)" }}>{s.feedback_text}</div>}
-          </div>
-        ))}
-      </Card>
+
     </div>
   );
 };
@@ -1789,6 +1771,7 @@ const MockTestPage = () => {
   }, [activeSkill, skill.duration]);
 
   useEffect(() => {
+    if (submitted) return;
     const t = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -1802,7 +1785,7 @@ const MockTestPage = () => {
     }, 1000);
 
     return () => clearInterval(t);
-  }, []);
+  }, [activeSkill, submitted]);
 
   const format = (s) => `${Math.floor(s/60)}:${String(s % 60).padStart(2, "0")}`;
   const words = testText.split(/\s+/).filter(Boolean).length;
