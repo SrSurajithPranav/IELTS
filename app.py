@@ -1,4 +1,5 @@
 from flask import Flask, request
+from sqlalchemy.exc import OperationalError
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flasgger import Flasgger
@@ -177,7 +178,25 @@ def create_app(config_name=None):
     
     # Create tables
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+        except OperationalError as exc:
+            message = str(exc.orig) if getattr(exc, 'orig', None) else str(exc)
+            if 'ENOTFOUND' in message or 'tenant/user' in message:
+                raise RuntimeError(
+                    "Supabase connection failed. Re-copy the exact DATABASE_URL from Supabase Dashboard → Connect → Transaction pooler. "
+                    "Use the pooler host, the exact `postgres.<project_ref>` username, and keep the password URL-encoded."
+                ) from exc
+            raise RuntimeError(
+                "Database initialization failed. Check that DATABASE_URL is the exact Supabase/Postgres connection string."
+            ) from exc
+        except Exception as exc:
+            raise RuntimeError(
+                "Database initialization failed. Check that DATABASE_URL is the exact "
+                "Supabase/Postgres connection string, that special characters in the "
+                "password are URL-encoded, and that the host/user pair matches the "
+                "copy-pasted value from Supabase Dashboard."
+            ) from exc
 
         # ── Seed default accounts so the app is usable on first run ──
         from models.user import User

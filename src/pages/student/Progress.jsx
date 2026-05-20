@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { submissionsAPI } from '../../services/api';
+import { submissionsAPI, aiAPI } from '../../services/api';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { ProgressRing, ProgressBar } from '../../components/ui/Progress';
+import { Button } from '../../components/ui/Button';
 
 const SKILLS = ['speaking', 'writing', 'reading', 'listening'];
 const SKILL_COLORS = {
@@ -15,6 +16,35 @@ export default function ProgressPage() {
   const { user } = useAuth();
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [studyPlan, setStudyPlan] = useState(null);
+  const [nextDrill, setNextDrill] = useState(null);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+  const [loadingDrill, setLoadingDrill] = useState(false);
+
+  const loadAiPlan = async () => {
+    setLoadingPlan(true);
+    try {
+      const res = await aiAPI.getStudyPlan();
+      setStudyPlan(res);
+    } catch {
+      setStudyPlan(null);
+    } finally {
+      setLoadingPlan(false);
+    }
+  };
+
+  const generateDrill = async () => {
+    setLoadingDrill(true);
+    try {
+      const preferredSkill = studyPlan?.priority_skills?.[0] || 'writing';
+      const res = await aiAPI.getNextDrill({ preferred_skill: preferredSkill, minutes: 20 });
+      setNextDrill(res);
+    } catch {
+      setNextDrill(null);
+    } finally {
+      setLoadingDrill(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -22,6 +52,8 @@ export default function ProgressPage() {
       .then((res) => setSubs(res || []))
       .catch(() => setSubs([]))
       .finally(() => setLoading(false));
+
+    loadAiPlan();
   }, [user]);
 
   // Compute skill breakdown
@@ -104,6 +136,45 @@ export default function ProgressPage() {
             </div>
           ))}
         </div>
+      </Card>
+
+      <Card className="fade-up" style={{ marginTop: 16, border: '1px solid rgba(20,108,114,.25)', background: 'rgba(20,108,114,.05)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700 }}>AI Study Coach</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button size="sm" variant="outline" onClick={loadAiPlan} loading={loadingPlan}>Refresh Plan</Button>
+            <Button size="sm" onClick={generateDrill} loading={loadingDrill}>Generate Next Drill</Button>
+          </div>
+        </div>
+
+        {studyPlan ? (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 10 }}>{studyPlan.coach_message}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {(studyPlan.priority_skills || []).map((skill) => (
+                <Badge key={skill} label={`Focus: ${skill}`} color="accent" />
+              ))}
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {(studyPlan.weekly_plan || []).slice(0, 3).map((day) => (
+                <div key={day.day} style={{ padding: 10, borderRadius: 10, background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>Day {day.day}: {day.focus_skill}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{day.mission}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>AI study plan not available yet.</div>
+        )}
+
+        {nextDrill && (
+          <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Next Best Drill: {nextDrill.drill?.title}</div>
+            <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 8 }}>{nextDrill.drill?.prompt}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Success: {nextDrill.drill?.success_criteria}</div>
+          </div>
+        )}
       </Card>
     </div>
   );

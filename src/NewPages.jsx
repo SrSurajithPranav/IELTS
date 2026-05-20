@@ -329,7 +329,7 @@ const JitsiJoinButton = ({ url, live }) => (
 /* ═══════════════════════════════════════════════════════
    3.  QUIZZES / GAMES PAGE
 ═══════════════════════════════════════════════════════ */
-const CATEGORIES = ["grammar","vocab","listening","reading","speaking","mock_ielts"];
+const CATEGORIES = ["reading", "listening", "writing", "learning", "grammar", "vocab", "speaking", "mock_ielts"];
 const CAT_ICONS = { grammar:"📝",vocab:"📖",listening:"🎧",reading:"📄",speaking:"🎙",mock_ielts:"🏆" };
 
 export const QuizzesPage = () => {
@@ -753,7 +753,6 @@ export const AdminResourcesMgr = () => {
   const [resources, setResources] = useState([]);
   const [form, setForm] = useState({ title: "", category: "general", type: "link", url: "", description: "" });
   const [showNew, setShowNew] = useState(false);
-  const [scrapeMsg, setScrapeMsg] = useState("");
 
   useEffect(() => {
     apiFetch("/resources/").then(d => setResources(Array.isArray(d) ? d : []));
@@ -771,44 +770,17 @@ export const AdminResourcesMgr = () => {
     setResources(rs => rs.filter(r => r.id !== id));
   };
 
-  const importPublicResources = async () => {
-    setScrapeMsg("Importing public IELTS resources…");
-    try {
-      const res = await apiFetch("/resources/scrape/seed", { method: "POST" });
-      const imported = Array.isArray(res?.imported) ? res.imported : [];
-      if (imported.length) {
-        setResources((current) => {
-          const merged = [...imported, ...current];
-          const seen = new Set();
-          return merged.filter((item) => {
-            if (seen.has(item.url)) return false;
-            seen.add(item.url);
-            return true;
-          });
-        });
-        setScrapeMsg(`Imported ${imported.length} public resources.`);
-      } else {
-        setScrapeMsg("No public resources were imported.");
-      }
-    } catch (error) {
-      setScrapeMsg(error.message || "Import failed.");
-    }
-  };
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <div style={{ fontFamily: "'Lora',serif", fontSize: 21, fontWeight: 700 }}>Resources</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <Btn variant="outline" onClick={importPublicResources}>Import Public IELTS Resources</Btn>
           <Btn onClick={() => setShowNew(n => !n)}>+ Add Resource</Btn>
         </div>
       </div>
-      {scrapeMsg && (
-        <Card style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.25)", background: "rgba(20,108,114,.06)" }}>
-          {scrapeMsg}
-        </Card>
-      )}
+      <Card style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.22)", background: "rgba(20,108,114,.05)", fontSize: 12 }}>
+        Resource library is private to your platform users. Add your own student-safe links here.
+      </Card>
       {showNew && (
         <div style={{ ...card, marginBottom: 18, border: "1px solid var(--accent,#5b8def)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -857,6 +829,9 @@ export const AdminQuizBuilder = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [meta, setMeta] = useState({ title: "", category: "grammar", difficulty: "intermediate", time_limit_min: 10 });
+  const [autoCount, setAutoCount] = useState(8);
+  const [autoMsg, setAutoMsg] = useState("");
+  const [autoLoading, setAutoLoading] = useState(false);
   const [questions, setQuestions] = useState([
     { question: "", options: ["", "", "", ""], correct: 0, explanation: "" }
   ]);
@@ -880,12 +855,52 @@ export const AdminQuizBuilder = () => {
     if (!res.error) { setQuizzes(qs => [res, ...qs]); setShowNew(false); }
   };
 
+  const autoGenerate = async () => {
+    setAutoMsg("");
+    setAutoLoading(true);
+    const payload = {
+      title: `${meta.category.charAt(0).toUpperCase()}${meta.category.slice(1)} Random Practice`,
+      category: meta.category,
+      difficulty: meta.difficulty,
+      time_limit_min: parseInt(meta.time_limit_min, 10) || 12,
+      question_count: parseInt(autoCount, 10) || 8,
+    };
+    const res = await apiFetch("/quizzes/generate-random", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (res?.error) {
+      setAutoMsg(res.error);
+    } else {
+      setQuizzes(qs => [res, ...qs]);
+      setAutoMsg(`Generated quiz: ${res.title}`);
+    }
+    setAutoLoading(false);
+  };
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <div style={{ fontFamily: "'Lora',serif", fontSize: 21, fontWeight: 700 }}>Quiz Builder</div>
-        <Btn onClick={() => setShowNew(n => !n)}>+ New Quiz</Btn>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="number"
+            min={4}
+            max={20}
+            value={autoCount}
+            onChange={e => setAutoCount(e.target.value)}
+            style={{ ...inp, width: 90 }}
+            title="Question count"
+          />
+          <Btn onClick={autoGenerate} disabled={autoLoading}>{autoLoading ? "Generating..." : "Generate Random Quiz"}</Btn>
+          <Btn v="outline" onClick={() => setShowNew(n => !n)}>+ New Quiz</Btn>
+        </div>
       </div>
+      {autoMsg && (
+        <Card style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.25)", background: "rgba(20,108,114,.06)", fontSize: 12 }}>
+          {autoMsg}
+        </Card>
+      )}
 
       {showNew && (
         <div style={{ ...card, marginBottom: 18, border: "1px solid var(--accent,#5b8def)" }}>

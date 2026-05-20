@@ -1,9 +1,25 @@
 import os
 from datetime import timedelta
 
+
+def normalize_database_url(value):
+    """Normalize common Postgres connection string variants for deployment."""
+    db_url = (value or "").strip()
+    if not db_url:
+        return "sqlite:///ielts.db"
+
+    if db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+
+    if ('supabase.co' in db_url or 'pooler.supabase.com' in db_url) and 'sslmode=' not in db_url:
+        separator = '&' if '?' in db_url else '?'
+        db_url = f'{db_url}{separator}sslmode=require'
+
+    return db_url
+
 class Config:
     """Base configuration."""
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///ielts.db')
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.getenv('DATABASE_URL', 'sqlite:///ielts.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=30)
@@ -39,7 +55,7 @@ class ProductionConfig(Config):
     @classmethod
     def init_app(cls, app):
         """Validate that critical env vars are set in production."""
-        db_url = os.getenv('DATABASE_URL', '')
+        db_url = normalize_database_url(os.getenv('DATABASE_URL', ''))
         if not db_url or 'sqlite' in db_url:
             import warnings
             warnings.warn(
@@ -48,10 +64,7 @@ class ProductionConfig(Config):
                 RuntimeWarning,
             )
 
-        # Fix Supabase/Heroku postgres:// → postgresql:// scheme
-        if db_url.startswith('postgres://'):
-            db_url = db_url.replace('postgres://', 'postgresql://', 1)
-            app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 
 class TestingConfig(Config):
     """Testing configuration."""

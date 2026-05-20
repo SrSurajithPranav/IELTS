@@ -2131,9 +2131,12 @@ const AdminStudents = () => {
 // ─────────────────────────────────────────────
 // ADMIN – PLANS
 // ─────────────────────────────────────────────
-const AdminPlans = () => {
+const AdminPlans = ({ setPage }) => {
   const [plans, setPlans] = useState([]);
+  const [students, setStudents] = useState([]);
   const [showNew, setShowNew] = useState(false);
+  const [assignPlanId, setAssignPlanId] = useState(null);
+  const [assignStudentId, setAssignStudentId] = useState("");
   const [planName, setPlanName] = useState("");
   const [planDays, setPlanDays] = useState(60);
   const [sessionType, setSessionType] = useState("solo");
@@ -2152,7 +2155,46 @@ const AdminPlans = () => {
       setPlans([]);
       setPlanError(error.message || "Failed to load plans.");
     });
+    studentsAPI.getAll()
+      .then((rows) => setStudents(visibleStudents(rows)))
+      .catch(() => setStudents([]));
   }, []);
+
+  const openConfigureTasks = (planId) => {
+    localStorage.setItem("admin_tasks_selected_plan", String(planId));
+    if (typeof setPage === "function") {
+      setPage("admin-tasks");
+    }
+  };
+
+  const openAssign = (planId) => {
+    setAssignPlanId(planId);
+    setAssignStudentId("");
+    setPlanError("");
+    setPlanMsg("");
+  };
+
+  const assignPlan = async () => {
+    if (!assignPlanId || !assignStudentId) {
+      setPlanError("Select a student before assigning a plan.");
+      return;
+    }
+    setSavingPlan(true);
+    setPlanError("");
+    setPlanMsg("");
+    try {
+      await plansAPI.assign(Number(assignStudentId), Number(assignPlanId));
+      const student = students.find((s) => Number(s.id) === Number(assignStudentId));
+      const plan = plans.find((p) => Number(p.id) === Number(assignPlanId));
+      setPlanMsg(`Assigned ${plan?.name || "plan"} to ${student?.name || "student"}.`);
+      setAssignPlanId(null);
+      setAssignStudentId("");
+    } catch (error) {
+      setPlanError(error.message || "Failed to assign plan.");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   const createNewPlan = async () => {
     setSavingPlan(true);
@@ -2243,12 +2285,33 @@ const AdminPlans = () => {
             <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Mode: {p.session_type}</div>
             <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 14 }}>{p.description}</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn size="sm" variant="outline">Configure Tasks</Btn>
-              <Btn size="sm">Assign</Btn>
+              <Btn size="sm" variant="outline" onClick={() => openConfigureTasks(p.id)}>Configure Tasks</Btn>
+              <Btn size="sm" onClick={() => openAssign(p.id)}>Assign</Btn>
             </div>
           </Card>
         ))}
       </div>
+
+      {assignPlanId && (
+        <Card style={{ marginTop: 16, border: "1px solid var(--accent)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>Assign Plan to Student</div>
+          <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Student</label>
+          <select
+            style={{ ...inp, marginBottom: 12 }}
+            value={assignStudentId}
+            onChange={(e) => setAssignStudentId(e.target.value)}
+          >
+            <option value="">Select student</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+            ))}
+          </select>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn onClick={assignPlan} disabled={savingPlan}>{savingPlan ? "Assigning..." : "Assign Plan"}</Btn>
+            <Btn variant="ghost" onClick={() => setAssignPlanId(null)}>Cancel</Btn>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
@@ -2365,7 +2428,16 @@ const AdminTasks = () => {
       .then((res) => {
         const loadedPlans = res || [];
         setPlans(loadedPlans);
-        if (!selectedPlan && loadedPlans.length) setSelectedPlan(loadedPlans[0].id);
+        if (!loadedPlans.length) return;
+
+        const preferredId = Number(localStorage.getItem("admin_tasks_selected_plan") || 0);
+        const matched = loadedPlans.find((plan) => plan.id === preferredId);
+        if (matched) {
+          setSelectedPlan(matched.id);
+          localStorage.removeItem("admin_tasks_selected_plan");
+        } else if (!selectedPlan) {
+          setSelectedPlan(loadedPlans[0].id);
+        }
       })
       .catch(() => setPlans([]));
   }, []);
@@ -2571,7 +2643,7 @@ export default function App() {
   const adminPages = {
     "admin-home":     <AdminHome />,
     "admin-students": <AdminStudents />,
-    "admin-plans":    <AdminPlans />,
+    "admin-plans":    <AdminPlans setPage={setPage} />,
     "admin-tasks":    <AdminTasks />,
     "admin-review":        <AdminReview />,
     "admin-sessions":      <AdminSessionsMgr />,

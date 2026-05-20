@@ -147,9 +147,22 @@ export const feedbackAPI = {
 // ── Plans ─────────────────────────────────────────────────
 export const plansAPI = {
   getAll: () => apiCall('/plans'),
+  getAssignments: () => apiCall('/plans/assignments'),
   getMy: () => apiCall('/plans/my'),
   select: (planId) =>
     apiCall('/plans/select', { method: 'POST', body: JSON.stringify({ plan_id: planId }) }),
+  assign: (studentId, planId) =>
+    apiCall('/plans/assign', {
+      method: 'POST',
+      body: JSON.stringify({ student_id: Number(studentId), plan_id: Number(planId) }),
+    }),
+  assignBulk: (planId, studentIds) =>
+    apiCall('/plans/assign/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ plan_id: Number(planId), student_ids: studentIds.map(Number) }),
+    }),
+  generateTasks: (planId, data = {}) =>
+    apiCall(`/plans/${planId}/generate-tasks`, { method: 'POST', body: JSON.stringify(data) }),
   create: (data) => apiCall('/plans', { method: 'POST', body: JSON.stringify(data) }),
 };
 
@@ -193,10 +206,19 @@ export const sessionsAPI = {
 export const quizzesAPI = {
   getAll: (category) =>
     apiCall(category && category !== 'all' ? `/quizzes/?category=${category}` : '/quizzes/'),
+  getRecommended: (params = {}) => {
+    const search = new URLSearchParams();
+    if (params.limit) search.set('limit', String(params.limit));
+    if (params.studentId) search.set('student_id', String(params.studentId));
+    const suffix = search.toString() ? `?${search.toString()}` : '';
+    return apiCall(`/quizzes/recommended${suffix}`);
+  },
   getOne: (id) => apiCall(`/quizzes/${id}`),
   attempt: (id, answers) =>
     apiCall(`/quizzes/${id}/attempt`, { method: 'POST', body: JSON.stringify({ answers }) }),
   create: (data) => apiCall('/quizzes/', { method: 'POST', body: JSON.stringify(data) }),
+  generateRandom: (data) =>
+    apiCall('/quizzes/generate-random', { method: 'POST', body: JSON.stringify(data) }),
   addQuestion: (quizId, data) =>
     apiCall(`/quizzes/${quizId}/questions`, { method: 'POST', body: JSON.stringify(data) }),
 };
@@ -207,7 +229,6 @@ export const resourcesAPI = {
     apiCall(category && category !== 'all' ? `/resources/?category=${category}` : '/resources/'),
   create: (data) => apiCall('/resources/', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id) => apiCall(`/resources/${id}`, { method: 'DELETE' }),
-  seedPublic: () => apiCall('/resources/scrape/seed', { method: 'POST' }),
 };
 
 // ── AI ────────────────────────────────────────────────────
@@ -223,6 +244,7 @@ export const aiAPI = {
   analyzeQuiz: (data) =>
     apiCall('/ai/quiz/analyze', { method: 'POST', body: JSON.stringify(data) }),
   getStudyPlan: () => apiCall('/ai/study-plan'),
+  getNextDrill: (data = {}) => apiCall('/ai/drill/next', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ── Leaderboard ───────────────────────────────────────────

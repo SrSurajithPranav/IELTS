@@ -1,9 +1,66 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.user import User
+from models.submission import Submission
+from models.task import Task
 from utils.ai_helpers import speech_to_text, check_grammar
+from collections import Counter
+from datetime import datetime, timedelta
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
+
+
+SKILLS = ['reading', 'listening', 'writing', 'speaking', 'grammar']
+
+
+def _resolve_target_student(requester, student_id):
+    if student_id is None:
+        return requester, None
+    if requester.role != 'admin':
+        return None, (jsonify({'error': 'Admin only'}), 403)
+    try:
+        sid = int(student_id)
+    except (TypeError, ValueError):
+        return None, (jsonify({'error': 'student_id must be an integer'}), 400)
+    target = User.query.get(sid)
+    if not target or target.role != 'student':
+        return None, (jsonify({'error': 'student not found'}), 404)
+    return target, None
+
+
+def _skill_snapshot(student_id, days=21):
+    since = datetime.utcnow() - timedelta(days=days)
+    rows = Submission.query.filter(
+        Submission.student_id == student_id,
+        Submission.submitted_at >= since,
+    ).all()
+
+    by_skill = {skill: {'submitted': 0, 'reviewed': 0} for skill in SKILLS}
+    for row in rows:
+        skill = (row.task.type if row.task else '').lower().strip()
+        if skill not in by_skill:
+            continue
+        by_skill[skill]['submitted'] += 1
+        if (row.status or '').lower() == 'reviewed':
+            by_skill[skill]['reviewed'] += 1
+    return by_skill, rows
+
+
+def _priority_skills(user, by_skill):
+    weak = [w.strip().lower() for w in (user.weak_areas or '').split(',') if w.strip()]
+    score_map = Counter()
+    for skill in SKILLS:
+        submitted = by_skill[skill]['submitted']
+        reviewed = by_skill[skill]['reviewed']
+        review_ratio = reviewed / submitted if submitted else 0
+        score_map[skill] += (1 - review_ratio) * 2
+        if submitted == 0:
+            score_map[skill] += 1.8
+        if any(skill[:4] in area or area[:4] in skill for area in weak):
+            score_map[skill] += 2.5
+
+    ranked = [skill for skill, _ in score_map.most_common()]
+    return ranked[:3] if ranked else ['writing', 'speaking', 'reading']
 
 
 @ai_bp.route('/writing/analyze', methods=['POST'])
@@ -219,3 +276,171 @@ def analyze_debate():
         'band_estimate': band_estimate,
         'source': 'rule-based-debate',
     })
+
+
+@ai_bp.route('/study-plan', methods=['GET'])
+@jwt_required()
+def study_plan():
+        """
+        Generate a personalized 7-day AI study plan
+        ---
+        tags:
+            - AI
+        security:
+            - Bearer: []
+        parameters:
+            - name: student_id
+                in: query
+                type: integer
+                required: false
+                description: Admin-only override for specific student.
+        responses:
+            200:
+                description: Personalized study plan
+            403:
+                description: Forbidden
+        """
+        uid = int(get_jwt_identity())
+        requester = User.query.get(uid)
+        if not requester:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+        target, err = _resolve_target_student(requester, request.args.get('student_id'))
+        if err:
+                return err
+
+        by_skill, recent_subs = _skill_snapshot(target.id)
+        priorities = _priority_skills(target, by_skill)
+        total_recent = len(recent_subs)
+        reviewed_recent = sum(1 for row in recent_subs if (row.status or '').lower() == 'reviewed')
+        review_rate = round((reviewed_recent / total_recent) * 100, 1) if total_recent else 0.0
+
+        weekly_plan = []
+        for day in range(1, 8):
+                focus = priorities[(day - 1) % len(priorities)]
+                weekly_plan.append({
+                        'day': day,
+                        'focus_skill': focus,
+                        'duration_min': 45 if day % 3 else 60,
+                        'mission': f'Practice {focus} with one timed drill and one reflection pass.',
+                        'tasks': [
+                                f'Warm-up: 10 minutes of focused {focus} review.',
+                                f'Main set: one IELTS-style {focus} task under time pressure.',
+                                'Reflection: capture 3 mistakes and 1 improvement target.',
+                        ],
+                })
+
+        return jsonify({
+                'student': {
+                        'id': target.id,
+                        'name': target.name,
+                        'estimated_band': target.score,
+                        'streak': target.streak,
+                },
+                'insights': {
+                        'recent_submissions': total_recent,
+                        'review_rate_percent': review_rate,
+                        'weak_areas': [w.strip() for w in (target.weak_areas or '').split(',') if w.strip()],
+                },
+                'priority_skills': priorities,
+                'weekly_plan': weekly_plan,
+                'coach_message': 'Consistency beats intensity. Complete at least 5 of 7 days for measurable score gains.',
+                'source': 'rule-based-study-planner',
+        })
+
+
+@ai_bp.route('/drill/next', methods=['POST'])
+@jwt_required()
+def next_drill():
+        """
+        Generate the next best AI drill for the student
+        ---
+        tags:
+            - AI
+        security:
+            - Bearer: []
+        parameters:
+            - name: body
+                in: body
+                required: false
+                schema:
+                    properties:
+                        preferred_skill:
+                            type: string
+                        minutes:
+                            type: integer
+                        student_id:
+                            type: integer
+        responses:
+            200:
+                description: Next drill recommendation
+            403:
+                description: Forbidden
+        """
+        uid = int(get_jwt_identity())
+        requester = User.query.get(uid)
+        if not requester:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+        data = request.get_json(silent=True) or {}
+        target, err = _resolve_target_student(requester, data.get('student_id'))
+        if err:
+                return err
+
+        by_skill, _ = _skill_snapshot(target.id, days=14)
+        priorities = _priority_skills(target, by_skill)
+        preferred = (data.get('preferred_skill') or '').strip().lower()
+        focus = preferred if preferred in SKILLS else priorities[0]
+
+        try:
+                minutes = int(data.get('minutes', 20))
+        except (TypeError, ValueError):
+                minutes = 20
+        minutes = max(10, min(minutes, 60))
+
+        drill_bank = {
+                'reading': {
+                        'title': 'Precision Skim + T/F/NG Sprint',
+                        'prompt': 'Read one medium passage and answer 8 True/False/Not Given items in one sitting.',
+                        'success_criteria': 'At least 6/8 correct with < 2 inference mistakes.',
+                },
+                'listening': {
+                        'title': 'Number & Detail Capture Drill',
+                        'prompt': 'Listen to one section and capture names, dates, times, and numbers on first pass.',
+                        'success_criteria': 'At least 80% detail accuracy in your notes.',
+                },
+                'writing': {
+                        'title': 'Thesis + Topic Sentence Builder',
+                        'prompt': 'Write intro + two body topic sentences for one Task 2 prompt before full essay.',
+                        'success_criteria': 'Clear position and logical paragraph progression.',
+                },
+                'speaking': {
+                        'title': '2-Minute Fluency Loop',
+                        'prompt': 'Record one 2-minute response, review filler words, then re-record improved version.',
+                        'success_criteria': 'Second attempt has fewer fillers and tighter structure.',
+                },
+                'grammar': {
+                        'title': 'Accuracy Repair Set',
+                        'prompt': 'Fix 10 sentence-level grammar errors and rewrite each sentence in one variation.',
+                        'success_criteria': '9/10 corrected accurately with clear rule awareness.',
+                },
+        }
+
+        selected = drill_bank[focus]
+        return jsonify({
+                'student_id': target.id,
+                'focus_skill': focus,
+                'duration_min': minutes,
+                'drill': {
+                        'title': selected['title'],
+                        'prompt': selected['prompt'],
+                        'checklist': [
+                                'Set a timer and complete in one uninterrupted session.',
+                                'Mark mistakes immediately after finishing.',
+                                'Write one improvement rule before next attempt.',
+                        ],
+                        'success_criteria': selected['success_criteria'],
+                },
+                'next_step': f'After this drill, take a short {focus} quiz and compare accuracy.',
+                'source': 'rule-based-drill-recommender',
+        })

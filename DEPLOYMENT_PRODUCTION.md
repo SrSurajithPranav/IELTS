@@ -188,7 +188,7 @@ CLOUDINARY_API_SECRET = your-api-secret
 
 ## 5. GitHub Secrets Setup
 
-For auto-deployment workflows, add GitHub secrets to your repo:
+For auto-deployment workflows, add GitHub secrets to your repo. The full list of required secret names and runtime env vars is also documented in [.github/ENVIRONMENT_SETUP.md](.github/ENVIRONMENT_SETUP.md).
 
 ### 5.1: Render Deploy Secret
 1. Go to Render dashboard → Account Settings → API Keys
