@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { apiCall } from '../api';
+import { apiCall } from '../services/api';
 
 function Card({ children, onClick, style }) {
   return (

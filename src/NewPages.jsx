@@ -1,4 +1,5 @@
 import React from "react";
+import { API_BASE_URL } from "./services/api";
 
 /**
  * NewPages.jsx
@@ -76,30 +77,7 @@ const Badge = ({ label, c = "accent" }) => {
     padding: "2px 9px", borderRadius: 99, letterSpacing: ".5px", textTransform: "uppercase" }}>{label}</span>;
 };
 
-const ENV_API_BASE_URL = typeof import.meta !== "undefined" ? (import.meta.env?.VITE_API_URL || "") : "";
-const IS_VITE_DEV = typeof import.meta !== "undefined" && !!import.meta.env && !!import.meta.env.DEV;
-const IS_GITHUB_FORWARDED_HOST = typeof window !== "undefined" && /\.app\.github\.dev$/.test(window.location.hostname);
-const INFERRED_GITHUB_API_BASE_URL = IS_GITHUB_FORWARDED_HOST
-  ? `${window.location.protocol}//${window.location.hostname.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev")}/api`
-  : "";
-const isLocalApiUrl = (value) => {
-  if (typeof value !== "string" || !value.trim()) return false;
-  try {
-    const parsed = new URL(value);
-    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-};
-
-let API = "/api";
-if (IS_VITE_DEV) {
-  API = "/api";
-} else if (IS_GITHUB_FORWARDED_HOST) {
-  API = INFERRED_GITHUB_API_BASE_URL || (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL) ? ENV_API_BASE_URL : API);
-} else {
-  API = (ENV_API_BASE_URL && !isLocalApiUrl(ENV_API_BASE_URL)) ? ENV_API_BASE_URL : API;
-}
+const API = API_BASE_URL;
 const DEMO_STUDENT_EMAILS = new Set([
   "student1@gmail.com",
   "student2@gmail.com",

@@ -2,6 +2,21 @@
 import { LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import {
+  API_BASE_URL,
+  apiCall,
+  authAPI,
+  tasksAPI,
+  submissionsAPI,
+  feedbackAPI,
+  plansAPI,
+  usersAPI,
+  batchesAPI,
+  studentsAPI,
+  visibleStudents,
+  loadMistakeMemory,
+  pushMistakeMemory,
+} from "./services/api";
 import ThemeToggle from "./components/ThemeToggle";
 import AnnouncementBanner from "./components/AnnouncementBanner";
 import VocabularyPage from "./pages/VocabularyPage";
@@ -69,35 +84,6 @@ const GlobalStyles = () => (
 // ─────────────────────────────────────────────
 const AuthCtx = createContext(null);
 
-// ─── API URL Resolution ───────────────────────────────────────────────
-// Priority:
-//  1. VITE_API_URL env var (set in .env.local for deployed backend)
-//  2. GitHub Codespaces: auto-detect the backend port URL
-//  3. Dev mode (npm run dev): use Vite proxy → relative /api
-//  4. Fallback: relative /api
-
-const ENV_API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim();
-
-const _host = typeof window !== "undefined" ? window.location.hostname : "";
-const IS_CODESPACES = /\.app\.github\.dev$/.test(_host);
-const IS_VITE_DEV   = import.meta.env.DEV;
-
-function _resolveApiBase() {
-  // Explicit env var always wins (for deployed / production)
-  if (ENV_API_BASE_URL && !ENV_API_BASE_URL.includes("localhost") && !ENV_API_BASE_URL.includes("127.0.0.1")) {
-    return ENV_API_BASE_URL.replace(/\/$/, "") + (ENV_API_BASE_URL.endsWith("/api") ? "" : "/api");
-  }
-  // Codespaces: swap current port to 5000 in the forwarded hostname
-  if (IS_CODESPACES) {
-    const backendHost = _host.replace(/-\d+\.app\.github\.dev$/, "-5000.app.github.dev");
-    return `${window.location.protocol}//${backendHost}/api`;
-  }
-  // Vite dev server proxies /api → localhost:5000 via vite.config.js
-  return "/api";
-}
-
-let API_BASE_URL = _resolveApiBase();
-
 // ─── Dev-only debug banner ────────────────────────────────────────────
 const DebugBanner = () => {
   const [status, setStatus] = React.useState("checking");
@@ -119,210 +105,6 @@ const DebugBanner = () => {
       {status === "error" && <span>→ Make sure Flask is running on port 5000, and port is set to Public in Codespaces</span>}
     </div>
   );
-};
-
-const API_TIMEOUT = 10000;
-
-const parseJsonSafely = async (response) => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-};
-
-// Fetch with timeout
-const apiCall = async (endpoint, options = {}) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT);
-  try {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem("jwt_token");
-    const headers = {
-      "Content-Type": "application/json",
-      ...options.headers,
-      ...(token && { Authorization: `Bearer ${token}` })
-    };
-    
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      signal: controller.signal
-    });
-    
-    const data = await parseJsonSafely(response);
-
-    if (!response.ok) {
-      const message = data && typeof data === "object" && data.error
-        ? data.error
-        : `API error: ${response.status}`;
-      throw new Error(message);
-    }
-
-    return data;
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new Error("Request timed out. Check backend availability.");
-    }
-    if (error instanceof TypeError) {
-      throw new Error("Cannot reach backend API. Check backend/server availability and API URL settings.");
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
-// API Methods
-const authAPI = {
-  login: (email, password) => apiCall("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password })
-  }),
-  register: (name, email, password) => apiCall("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ name, email, password })
-  }),
-  getProfile: () => apiCall("/auth/me")
-};
-
-const tasksAPI = {
-  getToday: () => apiCall("/tasks/today"),
-  getDay: (day) => apiCall(`/tasks/day/${day}`),
-  create: (data) => apiCall("/tasks", {
-    method: "POST",
-    body: JSON.stringify(data)
-  })
-};
-
-const submissionsAPI = {
-  submit: (taskId, content, audioBlob) => {
-    const formData = new FormData();
-    formData.append("task_id", taskId);
-    formData.append("content", content);
-    if (audioBlob) formData.append("audio", audioBlob, "recording.webm");
-    
-    const token = localStorage.getItem("jwt_token");
-    const hdrs = token ? { Authorization: `Bearer ${token}` } : {};
-    return fetch(`${API_BASE_URL}/submissions`, {
-      method: "POST",
-      headers: hdrs,
-      body: formData
-    }).then(r => r.json());
-  },
-  getStudentSubs: (studentId) => apiCall(`/submissions/student/${studentId}`),
-  getPending: () => apiCall("/submissions/pending")
-};
-
-const feedbackAPI = {
-  create: async (submissionId, text, audioFile) => {
-    const formData = new FormData();
-    formData.append("feedback_text", text || "");
-    if (audioFile) formData.append("audio", audioFile, "feedback.webm");
-
-    const token = localStorage.getItem("jwt_token");
-    const response = await fetch(`${API_BASE_URL}/feedback/${submissionId}`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
-
-    const data = await parseJsonSafely(response);
-    if (!response.ok) {
-      throw new Error(data && typeof data === "object" && data.error ? data.error : `API error: ${response.status}`);
-    }
-    return data;
-  }
-};
-
-const plansAPI = {
-  getAll: () => apiCall("/plans"),
-  getMy: () => apiCall("/plans/my"),
-  select: (planId) => apiCall("/plans/select", {
-    method: "POST",
-    body: JSON.stringify({ plan_id: planId })
-  }),
-  create: (data) => apiCall("/plans", {
-    method: "POST",
-    body: JSON.stringify(data)
-  })
-};
-
-const usersAPI = {
-  getStudents: () => apiCall("/users"),
-  update: (userId, data) => apiCall(`/users/${userId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data)
-  })
-};
-
-const batchesAPI = {
-  getAll: () => apiCall("/batches"),
-  create: (data) => apiCall("/batches", {
-    method: "POST",
-    body: JSON.stringify(data)
-  })
-};
-
-const studentsAPI = {
-  getAll: () => apiCall("/students/"),
-  create: (data) => apiCall("/students/", {
-    method: "POST",
-    body: JSON.stringify(data),
-  }),
-  resetPassword: (studentId, password) => apiCall(`/students/${studentId}/reset-password`, {
-    method: "POST",
-    body: JSON.stringify({ password }),
-  }),
-  update: (studentId, data) => apiCall(`/students/${studentId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  }),
-  delete: (studentId) => apiCall(`/students/${studentId}`, {
-    method: "DELETE",
-  }),
-};
-
-usersAPI.getStudents = () => studentsAPI.getAll();
-usersAPI.update = (userId, data) => studentsAPI.update(userId, data);
-
-const DEMO_STUDENT_EMAILS = new Set([
-  "student1@gmail.com",
-  "student2@gmail.com",
-  "student3@gmail.com",
-  "student4@gmail.com",
-  "student5@gmail.com",
-  "student@ielts.com",
-  "priya@ielts.com",
-  "ravi@ielts.com",
-]);
-
-const visibleStudents = (rows) => (Array.isArray(rows)
-  ? rows.filter((student) => !DEMO_STUDENT_EMAILS.has(String(student?.email || "").toLowerCase()))
-  : []);
-
-const loadMistakeMemory = () => {
-  try {
-    const raw = localStorage.getItem("mistake_memory_v1");
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const pushMistakeMemory = (items) => {
-  if (!Array.isArray(items) || items.length === 0) return;
-  const current = loadMistakeMemory();
-  const next = { ...current };
-  items.forEach((item) => {
-    const key = String(item || "").toLowerCase().trim();
-    if (!key) return;
-    next[key] = (next[key] || 0) + 1;
-  });
-  localStorage.setItem("mistake_memory_v1", JSON.stringify(next));
 };
 
 // ─────────────────────────────────────────────

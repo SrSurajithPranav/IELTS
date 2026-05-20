@@ -7,6 +7,7 @@
  *   setupAutoRefresh() - optional refresh-token background job
  */
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import { API_BASE_URL } from './services/api';
 
 const ToastCtx = createContext(null);
 
@@ -61,8 +62,7 @@ export const ToastProvider = ({ children }) => {
   );
 };
 
-const rawApiUrl = import.meta.env?.VITE_API_URL || '';
-const API_BASE = rawApiUrl.endsWith('/api') ? rawApiUrl : (rawApiUrl ? `${rawApiUrl}/api` : '/api');
+const API_BASE = API_BASE_URL;
 
 export const setupAutoRefresh = () => {
   const refresh = async () => {

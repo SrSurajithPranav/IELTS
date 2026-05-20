@@ -27,6 +27,7 @@ def create_app(config_name=None):
     
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
     app.url_map.strict_slashes = False  # Prevent 308 redirects that drop Authorization header
 
     # Run config-specific validation (e.g. ProductionConfig checks DATABASE_URL)
@@ -39,6 +40,7 @@ def create_app(config_name=None):
     JWTManager(app)
     CORS(app,
          resources={r"/api/.*": {"origins": "*"}},
+            supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
          expose_headers=["Authorization"]
