@@ -33,7 +33,7 @@ def create_app(config_name=None):
     db.init_app(app)
     JWTManager(app)
     CORS(app,
-         resources={r"/api/*": {"origins": "*"}},
+         resources={r"/api/.*": {"origins": "*"}},
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
          expose_headers=["Authorization"]
