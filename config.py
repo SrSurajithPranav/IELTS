@@ -32,9 +32,26 @@ class DevelopmentConfig(Config):
     REQUIRE_LOGIN_APPROVAL = False
 
 class ProductionConfig(Config):
-    """Production configuration."""
+    """Production configuration — requires DATABASE_URL env var (PostgreSQL)."""
     DEBUG = False
     REQUIRE_LOGIN_APPROVAL = False
+
+    @classmethod
+    def init_app(cls, app):
+        """Validate that critical env vars are set in production."""
+        db_url = os.getenv('DATABASE_URL', '')
+        if not db_url or 'sqlite' in db_url:
+            import warnings
+            warnings.warn(
+                "⚠️  DATABASE_URL is not set or points to SQLite. "
+                "Production should use PostgreSQL (e.g. Supabase).",
+                RuntimeWarning,
+            )
+
+        # Fix Supabase/Heroku postgres:// → postgresql:// scheme
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
+            app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 
 class TestingConfig(Config):
     """Testing configuration."""

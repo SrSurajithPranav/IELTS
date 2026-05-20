@@ -25,6 +25,14 @@ dist/
 !.env.backend.example
 !.env.frontend.example
 
+# Logs and PIDs
+*.log
+*.pid
+
 # OS/editor
 .DS_Store
+Thumbs.db
 .vscode/
+
+# Vite temp files
+*.timestamp-*

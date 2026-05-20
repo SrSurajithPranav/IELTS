@@ -28,6 +28,11 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     app.url_map.strict_slashes = False  # Prevent 308 redirects that drop Authorization header
+
+    # Run config-specific validation (e.g. ProductionConfig checks DATABASE_URL)
+    config_cls = config[config_name]
+    if hasattr(config_cls, 'init_app'):
+        config_cls.init_app(app)
     
     # Initialize extensions
     db.init_app(app)
