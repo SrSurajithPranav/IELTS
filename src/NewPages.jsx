@@ -118,6 +118,11 @@ const apiFetch = async (path, opts = {}) => {
   }
 };
 
+const openExternal = (url) => {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
 const isDemoStudent = (student) => DEMO_STUDENT_EMAILS.has(String(student?.email || "").toLowerCase());
 const visibleStudents = (rows) => (Array.isArray(rows) ? rows.filter((student) => !isDemoStudent(student)) : []);
 
@@ -300,9 +305,7 @@ export const LiveSessionsPage = ({ user }) => {
                     {new Date(r.uploaded_at).toLocaleDateString("en-IN")}
                   </div>
                 </div>
-                <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-                  <Btn v="outline">▷ Watch / Listen</Btn>
-                </a>
+                <Btn v="outline" onClick={() => openExternal(r.url)}>▷ Watch / Listen</Btn>
               </div>
             </div>
           ))}
@@ -314,16 +317,16 @@ export const LiveSessionsPage = ({ user }) => {
 
 /* Jitsi join button — opens in new tab (no API key needed) */
 const JitsiJoinButton = ({ url, live }) => (
-  <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-    <button style={{
+  <button
+    onClick={() => openExternal(url)}
+    style={{
       background: live ? "#2D8CFF" : "var(--bg3,#181c27)",
       color: live ? "#fff" : "var(--accent,#5b8def)",
       border: live ? "none" : "1px solid var(--accent,#5b8def)",
       padding: "10px 20px", borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: "pointer",
     }}>
       {live ? "🎙 Join Now (Jitsi)" : "🔗 Join When Live"}
-    </button>
-  </a>
+  </button>
 );
 
 /* ═══════════════════════════════════════════════════════
@@ -710,9 +713,7 @@ export const AdminSessionsMgr = () => {
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <Badge label={s.status} c={s.status === "live" ? "danger" : "accent"} />
-              <a href={s.jitsi_url} target="_blank" rel="noopener noreferrer">
-                <Btn v="outline">Open Room</Btn>
-              </a>
+              <Btn v="outline" onClick={() => openExternal(s.jitsi_url)}>Open Room</Btn>
             </div>
           </div>
           {/* Add recording button */}
@@ -813,7 +814,7 @@ export const AdminResourcesMgr = () => {
             <div style={{ fontSize: 11, color: "var(--muted,#5a6076)", marginTop: 3 }}>{r.category} · {r.type}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <a href={r.url} target="_blank" rel="noopener noreferrer"><Btn v="outline">Open</Btn></a>
+            <Btn v="outline" onClick={() => openExternal(r.url)}>Open</Btn>
             <Btn v="danger" onClick={() => del(r.id)}>Delete</Btn>
           </div>
         </div>
@@ -827,6 +828,7 @@ export const AdminResourcesMgr = () => {
 ═══════════════════════════════════════════════════════ */
 export const AdminQuizBuilder = () => {
   const [quizzes, setQuizzes] = useState([]);
+  const [previewQuiz, setPreviewQuiz] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [meta, setMeta] = useState({ title: "", category: "grammar", difficulty: "intermediate", time_limit_min: 10 });
   const [autoCount, setAutoCount] = useState(8);
@@ -839,6 +841,11 @@ export const AdminQuizBuilder = () => {
   useEffect(() => {
     apiFetch("/quizzes/").then(d => setQuizzes(Array.isArray(d) ? d : []));
   }, []);
+
+  const refreshQuizzes = async () => {
+    const d = await apiFetch("/quizzes/");
+    setQuizzes(Array.isArray(d) ? d : []);
+  };
 
   const setM = (k, v) => setMeta(m => ({ ...m, [k]: v }));
   const setQ = (qi, k, v) => setQuestions(qs => qs.map((q, i) => i === qi ? { ...q, [k]: v } : q));
@@ -876,6 +883,13 @@ export const AdminQuizBuilder = () => {
       setAutoMsg(`Generated quiz: ${res.title}`);
     }
     setAutoLoading(false);
+  };
+
+  const openPreview = async (quizId) => {
+    const full = await apiFetch(`/quizzes/${quizId}`);
+    if (!full?.error) {
+      setPreviewQuiz(full);
+    }
   };
 
   return (
@@ -947,15 +961,40 @@ export const AdminQuizBuilder = () => {
         </div>
       )}
 
+      {previewQuiz && (
+        <div style={{ ...card, marginBottom: 12, border: "1px solid rgba(91,141,239,.35)", background: "rgba(91,141,239,.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontWeight: 700 }}>{previewQuiz.title}</div>
+            <Btn v="ghost" onClick={() => setPreviewQuiz(null)}>Close</Btn>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted,#5a6076)", marginBottom: 10 }}>
+            {previewQuiz.category} · {previewQuiz.question_count} questions · {previewQuiz.difficulty}
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {(previewQuiz.questions || []).slice(0, 5).map((item, index) => (
+              <div key={item.id || index} style={{ padding: 10, borderRadius: 8, background: "var(--bg3,#181c27)", border: "1px solid var(--border,rgba(255,255,255,.08))" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Q{index + 1}. {item.question}</div>
+                <div style={{ fontSize: 11, color: "var(--muted,#5a6076)" }}>
+                  Correct: {item.options?.[item.correct_index] || "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {quizzes.map(q => (
-        <div key={q.id} style={{ ...card, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div key={q.id} style={{ ...card, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{q.title}</div>
             <div style={{ fontSize: 11, color: "var(--muted,#5a6076)", marginTop: 3 }}>
               {q.category} · {q.question_count} questions · {q.difficulty}
             </div>
           </div>
-          <Badge label={q.category} c="accent" />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Badge label={q.category} c="accent" />
+            <Btn v="outline" onClick={() => openPreview(q.id)}>Preview</Btn>
+          </div>
         </div>
       ))}
     </div>

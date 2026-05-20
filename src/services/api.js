@@ -235,16 +235,22 @@ export const resourcesAPI = {
 export const aiAPI = {
   analyzeWriting: (text) =>
     apiCall('/ai/writing/analyze', { method: 'POST', body: JSON.stringify({ text }) }),
+  brainstormWriting: (topic, stance = 'balanced') =>
+    apiCall('/ai/writing/brainstorm', { method: 'POST', body: JSON.stringify({ topic, stance }) }),
   rewriteBand9: (text) =>
     apiCall('/ai/writing/rewrite', { method: 'POST', body: JSON.stringify({ text }) }),
   analyzeSpeaking: (transcript, audio_url) =>
     apiCall('/ai/speaking/analyze', { method: 'POST', body: JSON.stringify({ transcript, audio_url }) }),
+  speakingFollowups: (topic, level = 'intermediate') =>
+    apiCall('/ai/speaking/followups', { method: 'POST', body: JSON.stringify({ topic, level }) }),
   analyzeDebate: (topic, argument) =>
     apiCall('/ai/debate/analyze', { method: 'POST', body: JSON.stringify({ topic, argument }) }),
   analyzeQuiz: (data) =>
     apiCall('/ai/quiz/analyze', { method: 'POST', body: JSON.stringify(data) }),
   getStudyPlan: () => apiCall('/ai/study-plan'),
   getNextDrill: (data = {}) => apiCall('/ai/drill/next', { method: 'POST', body: JSON.stringify(data) }),
+  getRiskReport: (studentId) =>
+    apiCall(studentId ? `/ai/progress/risk-report?student_id=${studentId}` : '/ai/progress/risk-report'),
 };
 
 // ── Leaderboard ───────────────────────────────────────────

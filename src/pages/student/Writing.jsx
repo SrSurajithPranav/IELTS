@@ -26,6 +26,9 @@ export default function WritingPage() {
   const [text, setText] = useState('');
   const [analysis, setAnalysis] = useState(null);
   const [rewrite, setRewrite] = useState(null);
+  const [brainstormTopic, setBrainstormTopic] = useState('');
+  const [brainstorm, setBrainstorm] = useState(null);
+  const [brainstorming, setBrainstorming] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [rewriting, setRewriting] = useState(false);
   const [subs, setSubs] = useState([]);
@@ -60,6 +63,22 @@ export default function WritingPage() {
     try { setRewrite(await aiAPI.rewriteBand9(text)); }
     catch (e) { notifyError(e.message || 'Rewrite failed'); }
     finally { setRewriting(false); }
+  };
+
+  const runBrainstorm = async () => {
+    const topic = brainstormTopic.trim() || prompt;
+    if (!topic) return;
+    setBrainstorming(true);
+    setBrainstorm(null);
+    try {
+      const res = await aiAPI.brainstormWriting(topic, taskType === 'task2' ? 'balanced' : 'agree');
+      setBrainstorm(res);
+      success('AI brainstorming ready');
+    } catch (e) {
+      notifyError(e.message || 'Brainstorm failed');
+    } finally {
+      setBrainstorming(false);
+    }
   };
 
   return (
@@ -121,6 +140,50 @@ export default function WritingPage() {
             Clear
           </Button>
         </div>
+      </Card>
+
+      <Card className="fade-up" style={{ marginBottom: 16, border: '1px solid rgba(20,108,114,.25)', background: 'rgba(20,108,114,.05)' }}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>AI Idea Generator</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          <input
+            value={brainstormTopic}
+            onChange={(e) => setBrainstormTopic(e.target.value)}
+            placeholder="Optional custom topic (leave empty to use current prompt)"
+            style={{
+              flex: 1,
+              minWidth: 240,
+              background: 'var(--bg3)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              padding: '10px 12px',
+              color: 'var(--text)',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+          <Button onClick={runBrainstorm} loading={brainstorming}>Generate Ideas</Button>
+        </div>
+
+        {brainstorm && (
+          <div style={{ padding: 12, borderRadius: 10, background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Thesis</div>
+            <div style={{ fontSize: 13, marginBottom: 10 }}>{brainstorm.thesis}</div>
+
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Body Ideas</div>
+            {(brainstorm.body_ideas || []).map((idea, idx) => (
+              <div key={idx} style={{ marginBottom: 8, fontSize: 12, color: 'var(--text)' }}>
+                <strong>{idea.point}:</strong> {idea.detail} <em>{idea.example}</em>
+              </div>
+            ))}
+
+            <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, marginBottom: 6 }}>Useful Vocabulary</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(brainstorm.vocabulary || []).map((word) => (
+                <Badge key={word} label={word} color="accent" />
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Analysis */}
