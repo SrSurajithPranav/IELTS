@@ -446,168 +446,168 @@ def next_drill():
         })
 
 
-        @ai_bp.route('/writing/brainstorm', methods=['POST'])
-        @jwt_required()
-        def brainstorm_writing():
-            """Generate IELTS essay ideas, structure, and high-value vocabulary."""
-            uid = int(get_jwt_identity())
-            requester = User.query.get(uid)
-            if not requester:
-                return jsonify({'error': 'Unauthorized'}), 401
+@ai_bp.route('/writing/brainstorm', methods=['POST'])
+@jwt_required()
+def brainstorm_writing():
+    """Generate IELTS essay ideas, structure, and high-value vocabulary."""
+    uid = int(get_jwt_identity())
+    requester = User.query.get(uid)
+    if not requester:
+        return jsonify({'error': 'Unauthorized'}), 401
 
-            data = request.get_json(silent=True) or {}
-            topic = (data.get('topic') or '').strip()
-            stance = (data.get('stance') or 'balanced').strip().lower()
-            if not topic:
-                return jsonify({'error': 'topic is required'}), 400
+    data = request.get_json(silent=True) or {}
+    topic = (data.get('topic') or '').strip()
+    stance = (data.get('stance') or 'balanced').strip().lower()
+    if not topic:
+        return jsonify({'error': 'topic is required'}), 400
 
-            intro = f"This essay examines {topic.lower()} by evaluating both immediate and long-term effects."
-            idea_pool = [
-                {
-                    'point': 'Primary benefit',
-                    'detail': f'One clear advantage of {topic.lower()} is improved efficiency in daily systems.',
-                    'example': 'For instance, urban services can be delivered faster with better coordination.',
-                },
-                {
-                    'point': 'Main drawback',
-                    'detail': f'A key concern is unequal access, which may widen social gaps if {topic.lower()} is poorly managed.',
-                    'example': 'Rural and low-income groups often receive benefits later than urban populations.',
-                },
-                {
-                    'point': 'Practical solution',
-                    'detail': 'Policy design should combine regulation, awareness, and targeted investment.',
-                    'example': 'Governments can fund pilot programs before full rollout to reduce risks.',
-                },
-            ]
+    intro = f"This essay examines {topic.lower()} by evaluating both immediate and long-term effects."
+    idea_pool = [
+        {
+            'point': 'Primary benefit',
+            'detail': f'One clear advantage of {topic.lower()} is improved efficiency in daily systems.',
+            'example': 'For instance, urban services can be delivered faster with better coordination.',
+        },
+        {
+            'point': 'Main drawback',
+            'detail': f'A key concern is unequal access, which may widen social gaps if {topic.lower()} is poorly managed.',
+            'example': 'Rural and low-income groups often receive benefits later than urban populations.',
+        },
+        {
+            'point': 'Practical solution',
+            'detail': 'Policy design should combine regulation, awareness, and targeted investment.',
+            'example': 'Governments can fund pilot programs before full rollout to reduce risks.',
+        },
+    ]
 
-            if stance == 'agree':
-                thesis = f"Overall, I agree that {topic.lower()} brings more advantages than disadvantages when implemented responsibly."
-            elif stance == 'disagree':
-                thesis = f"Overall, I disagree, because the long-term risks of {topic.lower()} can outweigh short-term gains."
-            else:
-                thesis = f"Overall, a balanced view is needed: {topic.lower()} can be beneficial only with effective safeguards."
+    if stance == 'agree':
+        thesis = f"Overall, I agree that {topic.lower()} brings more advantages than disadvantages when implemented responsibly."
+    elif stance == 'disagree':
+        thesis = f"Overall, I disagree, because the long-term risks of {topic.lower()} can outweigh short-term gains."
+    else:
+        thesis = f"Overall, a balanced view is needed: {topic.lower()} can be beneficial only with effective safeguards."
 
-            vocabulary = [
-                'long-term implications',
-                'socioeconomic disparity',
-                'policy intervention',
-                'sustainable implementation',
-                'measurable outcomes',
-                'public accountability',
-            ]
+    vocabulary = [
+        'long-term implications',
+        'socioeconomic disparity',
+        'policy intervention',
+        'sustainable implementation',
+        'measurable outcomes',
+        'public accountability',
+    ]
 
-            return jsonify({
-                'topic': topic,
-                'thesis': thesis,
-                'intro_hook': intro,
-                'body_ideas': idea_pool,
-                'conclusion_line': 'In conclusion, effective governance determines whether this trend becomes an opportunity or a liability.',
-                'vocabulary': vocabulary,
-                'source': 'rule-based-brainstormer',
-            })
-
-
-        @ai_bp.route('/speaking/followups', methods=['POST'])
-        @jwt_required()
-        def speaking_followups():
-            """Generate IELTS-style follow-up questions and model cues for speaking practice."""
-            uid = int(get_jwt_identity())
-            requester = User.query.get(uid)
-            if not requester:
-                return jsonify({'error': 'Unauthorized'}), 401
-
-            data = request.get_json(silent=True) or {}
-            topic = (data.get('topic') or '').strip()
-            level = (data.get('level') or 'intermediate').strip().lower()
-            if not topic:
-                return jsonify({'error': 'topic is required'}), 400
-
-            base_questions = [
-                f"Why do you think {topic.lower()} matters in modern society?",
-                f"Can you compare how {topic.lower()} affects younger and older generations?",
-                f"What challenges might appear if governments ignore {topic.lower()}?",
-                f"How could schools better prepare students for issues related to {topic.lower()}?",
-                f"Do you think attitudes toward {topic.lower()} will change in the next decade? Why?",
-            ]
-
-            if level == 'advanced':
-                base_questions.append(
-                    f"To what extent should economic priorities be sacrificed to address concerns around {topic.lower()}?"
-                )
-
-            model_cues = [
-                'Start with a direct position in one sentence.',
-                'Add one real-world example or contrast.',
-                'Use one linker: however, moreover, consequently, or whereas.',
-                'Close with a short implication statement.',
-            ]
-
-            return jsonify({
-                'topic': topic,
-                'level': level,
-                'follow_up_questions': base_questions,
-                'model_cues': model_cues,
-                'source': 'rule-based-followup-generator',
-            })
+    return jsonify({
+        'topic': topic,
+        'thesis': thesis,
+        'intro_hook': intro,
+        'body_ideas': idea_pool,
+        'conclusion_line': 'In conclusion, effective governance determines whether this trend becomes an opportunity or a liability.',
+        'vocabulary': vocabulary,
+        'source': 'rule-based-brainstormer',
+    })
 
 
-        @ai_bp.route('/progress/risk-report', methods=['GET'])
-        @jwt_required()
-        def progress_risk_report():
-            """Estimate score-plateau risk and provide corrective actions from recent learning activity."""
-            uid = int(get_jwt_identity())
-            requester = User.query.get(uid)
-            if not requester:
-                return jsonify({'error': 'Unauthorized'}), 401
+@ai_bp.route('/speaking/followups', methods=['POST'])
+@jwt_required()
+def speaking_followups():
+    """Generate IELTS-style follow-up questions and model cues for speaking practice."""
+    uid = int(get_jwt_identity())
+    requester = User.query.get(uid)
+    if not requester:
+        return jsonify({'error': 'Unauthorized'}), 401
 
-            student, err = _resolve_target_student(requester, request.args.get('student_id'))
-            if err:
-                return err
+    data = request.get_json(silent=True) or {}
+    topic = (data.get('topic') or '').strip()
+    level = (data.get('level') or 'intermediate').strip().lower()
+    if not topic:
+        return jsonify({'error': 'topic is required'}), 400
 
-            by_skill, recent = _skill_snapshot(student.id, days=28)
-            total = len(recent)
-            reviewed = sum(1 for row in recent if (row.status or '').lower() == 'reviewed')
-            review_rate = (reviewed / total) if total else 0
-            diversity = sum(1 for skill in SKILLS if by_skill[skill]['submitted'] > 0)
+    base_questions = [
+        f"Why do you think {topic.lower()} matters in modern society?",
+        f"Can you compare how {topic.lower()} affects younger and older generations?",
+        f"What challenges might appear if governments ignore {topic.lower()}?",
+        f"How could schools better prepare students for issues related to {topic.lower()}?",
+        f"Do you think attitudes toward {topic.lower()} will change in the next decade? Why?",
+    ]
 
-            risk_score = 0
-            if total < 6:
-                risk_score += 45
-            if review_rate < 0.5:
-                risk_score += 30
-            if diversity < 3:
-                risk_score += 25
-            risk_score = min(risk_score, 100)
+    if level == 'advanced':
+        base_questions.append(
+            f"To what extent should economic priorities be sacrificed to address concerns around {topic.lower()}?"
+        )
 
-            if risk_score >= 70:
-                risk_level = 'high'
-            elif risk_score >= 40:
-                risk_level = 'moderate'
-            else:
-                risk_level = 'low'
+    model_cues = [
+        'Start with a direct position in one sentence.',
+        'Add one real-world example or contrast.',
+        'Use one linker: however, moreover, consequently, or whereas.',
+        'Close with a short implication statement.',
+    ]
 
-            actions = [
-                'Complete at least 5 focused sessions per week.',
-                'Request feedback on every second submission to accelerate correction loops.',
-                'Rotate across reading, listening, writing, and speaking to avoid single-skill stagnation.',
-            ]
-            if diversity < 3:
-                actions.insert(0, 'Add two under-practiced skills this week to improve score balance.')
+    return jsonify({
+        'topic': topic,
+        'level': level,
+        'follow_up_questions': base_questions,
+        'model_cues': model_cues,
+        'source': 'rule-based-followup-generator',
+    })
 
-            return jsonify({
-                'student': {
-                    'id': student.id,
-                    'name': student.name,
-                    'estimated_band': student.score,
-                    'streak': student.streak,
-                },
-                'risk': {
-                    'level': risk_level,
-                    'score': risk_score,
-                    'recent_submissions': total,
-                    'review_rate_percent': round(review_rate * 100, 1),
-                    'skill_diversity': diversity,
-                },
-                'actions': actions,
-                'source': 'rule-based-risk-model',
-            })
+
+@ai_bp.route('/progress/risk-report', methods=['GET'])
+@jwt_required()
+def progress_risk_report():
+    """Estimate score-plateau risk and provide corrective actions from recent learning activity."""
+    uid = int(get_jwt_identity())
+    requester = User.query.get(uid)
+    if not requester:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    student, err = _resolve_target_student(requester, request.args.get('student_id'))
+    if err:
+        return err
+
+    by_skill, recent = _skill_snapshot(student.id, days=28)
+    total = len(recent)
+    reviewed = sum(1 for row in recent if (row.status or '').lower() == 'reviewed')
+    review_rate = (reviewed / total) if total else 0
+    diversity = sum(1 for skill in SKILLS if by_skill[skill]['submitted'] > 0)
+
+    risk_score = 0
+    if total < 6:
+        risk_score += 45
+    if review_rate < 0.5:
+        risk_score += 30
+    if diversity < 3:
+        risk_score += 25
+    risk_score = min(risk_score, 100)
+
+    if risk_score >= 70:
+        risk_level = 'high'
+    elif risk_score >= 40:
+        risk_level = 'moderate'
+    else:
+        risk_level = 'low'
+
+    actions = [
+        'Complete at least 5 focused sessions per week.',
+        'Request feedback on every second submission to accelerate correction loops.',
+        'Rotate across reading, listening, writing, and speaking to avoid single-skill stagnation.',
+    ]
+    if diversity < 3:
+        actions.insert(0, 'Add two under-practiced skills this week to improve score balance.')
+
+    return jsonify({
+        'student': {
+            'id': student.id,
+            'name': student.name,
+            'estimated_band': student.score,
+            'streak': student.streak,
+        },
+        'risk': {
+            'level': risk_level,
+            'score': risk_score,
+            'recent_submissions': total,
+            'review_rate_percent': round(review_rate * 100, 1),
+            'skill_diversity': diversity,
+        },
+        'actions': actions,
+        'source': 'rule-based-risk-model',
+    })

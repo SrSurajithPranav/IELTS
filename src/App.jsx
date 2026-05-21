@@ -300,6 +300,7 @@ const Sidebar = ({ page, setPage, user, onLogout }) => {
     { id: "writing",      icon: "✍️", label: "Writing" },
     { id: "debate",       icon: "🗣️", label: "Debate Mode" },
     { id: "progress",     icon: "📊", label: "Progress" },
+    { id: "ai-coach",     icon: "🤖", label: "AI Coach" },
     { id: "mocktest",     icon: "⏱",  label: "Mock Test" },
     { id: "games",        icon: "🧩", label: "Games" },
     { id: "leaderboard",  icon: "🏆", label: "Leaderboard" },
@@ -760,6 +761,63 @@ const TasksPage = ({ user }) => {
 // ─────────────────────────────────────────────
 // SPEAKING PAGE
 // ─────────────────────────────────────────────
+const SpeakingFollowupPanel = () => {
+  const [topic, setTopic] = useState('');
+  const [level, setLevel] = useState('intermediate');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const run = async () => {
+    if (!topic.trim()) return;
+    setLoading(true); setErr(''); setResult(null);
+    try {
+      const res = await aiAPI.speakingFollowups(topic.trim(), level);
+      if (res?.error) setErr(res.error);
+      else setResult(res);
+    } catch (e) { setErr(e.message || 'Failed'); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginBottom: 20 }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>🎙️ AI Follow-up Questions</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <input
+          value={topic} onChange={e => setTopic(e.target.value)}
+          placeholder="Speaking topic, e.g. Technology and education"
+          style={{ flex: 1, minWidth: 200, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 13, outline: 'none' }}
+        />
+        <select value={level} onChange={e => setLevel(e.target.value)}
+          style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 13 }}>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+        <button onClick={run} disabled={loading || !topic.trim()}
+          style={{ padding: '9px 18px', borderRadius: 8, background: 'var(--accent2,#8b5cf6)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, opacity: loading ? 0.6 : 1 }}>
+          {loading ? 'Generating…' : 'Get Questions'}
+        </button>
+      </div>
+      {err && <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8 }}>{err}</div>}
+      {result && (
+        <div style={{ fontSize: 13 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Follow-up Questions:</div>
+          <ol style={{ margin: 0, paddingLeft: 20 }}>
+            {(result.follow_up_questions || []).map((q, i) => (
+              <li key={i} style={{ marginBottom: 8, color: 'var(--text)' }}>{q}</li>
+            ))}
+          </ol>
+          <div style={{ marginTop: 12, fontWeight: 600, marginBottom: 6 }}>Model Answer Cues:</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {(result.model_cues || []).map((c, i) => (
+              <li key={i} style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{c}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
 const SpeakingPage = ({ user }) => {
   const [subs, setSubs] = useState([]);
   const [transcript, setTranscript] = useState("");
@@ -886,6 +944,7 @@ const SpeakingPage = ({ user }) => {
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Speaking Submissions</div>
+      <SpeakingFollowupPanel />
       <Card className="fade-up-2" style={{ marginBottom: 14, border: "1px solid rgba(20,108,114,.25)", background: "rgba(20,108,114,.06)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <div style={{ fontWeight: 700 }}>AI Interviewer Simulation</div>
@@ -986,6 +1045,69 @@ const SpeakingPage = ({ user }) => {
 // ─────────────────────────────────────────────
 // WRITING PAGE
 // ─────────────────────────────────────────────
+const WritingBrainstormPanel = () => {
+  const [topic, setTopic] = useState('');
+  const [stance, setStance] = useState('balanced');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const run = async () => {
+    if (!topic.trim()) return;
+    setLoading(true); setErr(''); setResult(null);
+    try {
+      const res = await aiAPI.brainstormWriting(topic.trim(), stance);
+      if (res?.error) setErr(res.error);
+      else setResult(res);
+    } catch (e) { setErr(e.message || 'Failed'); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginBottom: 20 }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>💡 AI Essay Brainstorm</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <input
+          value={topic} onChange={e => setTopic(e.target.value)}
+          placeholder="Essay topic, e.g. Social media effects on youth"
+          style={{ flex: 1, minWidth: 200, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 13, outline: 'none' }}
+        />
+        <select value={stance} onChange={e => setStance(e.target.value)}
+          style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 13 }}>
+          <option value="balanced">Balanced</option>
+          <option value="agree">Agree</option>
+          <option value="disagree">Disagree</option>
+        </select>
+        <button onClick={run} disabled={loading || !topic.trim()}
+          style={{ padding: '9px 18px', borderRadius: 8, background: 'var(--accent,#5b8def)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, opacity: loading ? 0.6 : 1 }}>
+          {loading ? 'Thinking…' : 'Brainstorm'}
+        </button>
+      </div>
+      {err && <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8 }}>{err}</div>}
+      {result && (
+        <div style={{ fontSize: 13 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Thesis:</div>
+          <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontStyle: 'italic', color: 'var(--text)' }}>{result.thesis}</div>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Body Ideas:</div>
+          {(result.body_ideas || []).map((idea, i) => (
+            <div key={i} style={{ background: 'var(--bg3)', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+              <div style={{ fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>{idea.point}</div>
+              <div style={{ marginBottom: 4 }}>{idea.detail}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Example: {idea.example}</div>
+            </div>
+          ))}
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Key Vocabulary:</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {(result.vocabulary || []).map((v, i) => (
+              <span key={i} style={{ background: 'rgba(91,141,239,.15)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 99, fontSize: 12 }}>{v}</span>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Conclusion: {result.conclusion_line}</div>
+        </div>
+      )}
+    </div>
+  );
+};
 const analyzeWriting = (text) => {
   const words = text.split(/\s+/).length;
 
@@ -1066,6 +1188,7 @@ const WritingPage = ({ user }) => {
   return (
     <div>
       <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Writing Submissions</div>
+      <WritingBrainstormPanel />
 
       {/* New Writing */}
       <Card className="fade-up-2" style={{ marginBottom: 20 }}>
@@ -1238,6 +1361,53 @@ const DebateModePage = () => {
           </ul>
         </Card>
       )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// AI COACH PAGE
+// ─────────────────────────────────────────────
+const AICoachPage = ({ user }) => {
+  const [risk, setRisk] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const loadRisk = async () => {
+    setLoading(true); setErr(''); setRisk(null);
+    try {
+      const res = await aiAPI.getRiskReport(user.id);
+      if (res?.error) setErr(res.error);
+      else setRisk(res);
+    } catch (e) { setErr(e.message || 'Failed'); }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <div className="fade-up playfair" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>AI Coach</div>
+      <p style={{ color: 'var(--muted)', marginBottom: 16 }}>Personalized AI tools: brainstorm essays, generate speaking follow-ups, and assess learning risk.</p>
+
+      <div style={{ marginBottom: 12 }}>
+        <WritingBrainstormPanel />
+        <SpeakingFollowupPanel />
+      </div>
+
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontWeight: 700 }}>Progress Risk</div>
+          <Btn size="sm" onClick={loadRisk} disabled={loading}>{loading ? 'Analyzing…' : 'Generate Risk Report'}</Btn>
+        </div>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{err}</div>}
+        {risk && (
+          <div style={{ fontSize: 13 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>{risk.risk?.level?.toUpperCase()} risk — {risk.risk?.score}/100</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{risk.risk?.recent_submissions} submissions · {risk.risk?.review_rate_percent}% reviewed · {risk.risk?.skill_diversity} skills active</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Actions:</div>
+            <ul style={{ paddingLeft: 18 }}>{(risk.actions || []).map((a, i) => <li key={i} style={{ marginBottom: 6 }}>{a}</li>)}</ul>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
@@ -1861,6 +2031,58 @@ const AdminHome = () => {
 // ─────────────────────────────────────────────
 // ADMIN – STUDENTS
 // ─────────────────────────────────────────────
+const StudentAIRiskPanel = ({ studentId }) => {
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = async () => {
+    setLoading(true); setErr('');
+    try {
+      const res = await aiAPI.getRiskReport(studentId);
+      if (res?.error) setErr(res.error);
+      else setReport(res);
+    } catch (e) { setErr(e.message || 'Failed'); }
+    setLoading(false);
+  };
+
+  useEffect(() => { setReport(null); }, [studentId]);
+
+  const riskColor = { high: 'var(--danger,#f87171)', moderate: 'var(--warn,#fbbf24)', low: 'var(--success,#34d399)' };
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>AI Progress Risk Report</div>
+      {!report && !loading && (
+        <button onClick={load} style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent,#5b8def)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          Generate Risk Report
+        </button>
+      )}
+      {loading && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Analysing…</div>}
+      {err && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{err}</div>}
+      {report && (
+        <div style={{ background: 'var(--bg3)', borderRadius: 10, padding: 14, fontSize: 13 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, color: riskColor[report.risk?.level] || 'var(--text)', fontSize: 15, textTransform: 'uppercase' }}>
+              {report.risk?.level} RISK
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>score: {report.risk?.score}/100</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+            {report.risk?.recent_submissions} submissions · {report.risk?.review_rate_percent}% reviewed · {report.risk?.skill_diversity} skills active
+          </div>
+          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 12 }}>Recommended Actions:</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {(report.actions || []).map((a, i) => (
+              <li key={i} style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>{a}</li>
+            ))}
+          </ul>
+          <button onClick={() => setReport(null)} style={{ marginTop: 10, fontSize: 11, background: 'none', color: 'var(--muted)', border: 'none', cursor: 'pointer' }}>Clear</button>
+        </div>
+      )}
+    </div>
+  );
+};
 const AdminStudents = () => {
   const [students, setStudents] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -2121,6 +2343,8 @@ const AdminStudents = () => {
                 <Btn style={{ width: "100%" }} variant="danger" onClick={() => deleteStudent(selected.id)}>Delete Student</Btn>
               </div>
             </div>
+            {/* AI Risk Report for selected student */}
+            <StudentAIRiskPanel studentId={selected.id} />
           </Card>
         )}
       </div>
@@ -2631,6 +2855,7 @@ export default function App() {
     tasks:     <TasksPage user={user} />,
     speaking:  <SpeakingPage user={user} />,
     writing:   <WritingPage user={user} />,
+    'ai-coach': <AICoachPage user={user} />,
     debate:    <DebateModePage />,
     progress:  <ProgressPage user={user} />,
     mocktest:  <MockTestPage />,
