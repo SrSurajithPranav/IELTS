@@ -323,9 +323,32 @@ def generate_random_quiz():
 
     _ensure_private_seed_resources(uid)
 
-    generated_questions = _resource_based_questions(category, question_count)
-    if len(generated_questions) < question_count:
-        generated_questions = _fallback_questions(category, question_count)
+    # Special-case: full mock IELTS quiz with one question from each core skill
+    if category == 'mock_ielts' or (data.get('structure') or '').strip().lower() == 'one_each':
+        desired = ['reading', 'writing', 'listening', 'speaking']
+        generated_questions = []
+        for cat in desired:
+            qlist = _resource_based_questions(cat, 1)
+            if not qlist:
+                qlist = _fallback_questions(cat, 1)
+            if qlist:
+                # tag question with its skill
+                item = qlist[0]
+                item.setdefault('meta', {})['skill'] = cat
+                generated_questions.append(item)
+        # If somehow fewer than 4 were generated, fill the rest from fallback learning bank
+        if len(generated_questions) < 4:
+            more = _fallback_questions('learning', 4 - len(generated_questions))
+            generated_questions.extend(more)
+        # Respect the supplied title or create a sensible default
+        if not title:
+            title = f"Full IELTS Mock ({difficulty.capitalize()})"
+        # Override the question count to actual generated length
+        question_count = len(generated_questions)
+    else:
+        generated_questions = _resource_based_questions(category, question_count)
+        if len(generated_questions) < question_count:
+            generated_questions = _fallback_questions(category, question_count)
 
     quiz = Quiz(
         title=title,

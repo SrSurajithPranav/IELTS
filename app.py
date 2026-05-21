@@ -74,21 +74,24 @@ def create_app(config_name=None):
         }
     }
     
-    Flasgger(
-        app,
-        config=swagger_config,
-        template={
-            "definitions": {},
-            "securityDefinitions": {
-                "Bearer": {
-                    "type": "apiKey",
-                    "name": "Authorization",
-                    "in": "header",
-                    "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+    # Only enable the interactive Swagger UI in development to avoid the frontend
+    # attempting to fetch /apispec.json when the backend is not running in prod.
+    if config_name == 'development' or app.config.get('ENABLE_SWAGGER', False):
+        Flasgger(
+            app,
+            config=swagger_config,
+            template={
+                "definitions": {},
+                "securityDefinitions": {
+                    "Bearer": {
+                        "type": "apiKey",
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+                    }
                 }
             }
-        }
-    )
+        )
 
     @app.before_request
     def normalize_authorization_header():
