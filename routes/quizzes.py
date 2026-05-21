@@ -22,6 +22,163 @@ QUIZ_CATEGORY_ALIASES = {
 }
 
 FALLBACK_QUESTION_BANK = {
+    "grammar": [
+        {
+            "question": "Which sentence uses the passive voice correctly?",
+            "options": [
+                "The report was written by the team.",
+                "The team wrote the report by was.",
+                "The report were written by the team.",
+                "By the team the report was writing.",
+            ],
+            "correct": 0,
+            "explanation": "Passive voice: subject + 'to be' + past participle. 'The report was written' is correct.",
+        },
+        {
+            "question": "Choose the correct article: '___ IELTS exam tests four skills.'",
+            "options": ["A", "An", "The", "No article"],
+            "correct": 2,
+            "explanation": "'The' is used for specific, known nouns. The IELTS exam is a specific, well-known test.",
+        },
+        {
+            "question": "Which sentence is grammatically correct?",
+            "options": [
+                "Despite of the rain, they continued.",
+                "Despite the rain, they continued.",
+                "Despite of rain, they continued.",
+                "Despite that rain, they continued.",
+            ],
+            "correct": 1,
+            "explanation": "'Despite' is a preposition followed directly by a noun phrase, not 'of'.",
+        },
+        {
+            "question": "Select the correct conditional: 'If I ___ harder, I would have passed.'",
+            "options": ["study", "studied", "had studied", "have studied"],
+            "correct": 2,
+            "explanation": "Third conditional (past unreal): 'if + past perfect, would + have + past participle'.",
+        },
+        {
+            "question": "Which linking word correctly shows contrast?",
+            "options": ["Furthermore", "Therefore", "Nevertheless", "Consequently"],
+            "correct": 2,
+            "explanation": "'Nevertheless' introduces a contrasting point despite a previous statement.",
+        },
+        {
+            "question": "Identify the error: 'The informations provided were useful.'",
+            "options": [
+                "'informations' — should be 'information' (uncountable)",
+                "'were' — should be 'was'",
+                "'provided' — should be 'providing'",
+                "No error",
+            ],
+            "correct": 0,
+            "explanation": "'Information' is an uncountable noun in English and has no plural form.",
+        },
+        {
+            "question": "Which sentence uses a relative clause correctly?",
+            "options": [
+                "The student which passed the test was happy.",
+                "The student who passed the test was happy.",
+                "The student that he passed the test was happy.",
+                "The student, he passed the test, was happy.",
+            ],
+            "correct": 1,
+            "explanation": "Use 'who' for people in relative clauses, not 'which'.",
+        },
+        {
+            "question": "Choose the correct form: 'She suggested ___ the library.'",
+            "options": ["to visit", "visiting", "visit", "visited"],
+            "correct": 1,
+            "explanation": "'Suggest' is followed by a gerund (-ing), not an infinitive.",
+        },
+        {
+            "question": "Which sentence has correct subject-verb agreement?",
+            "options": [
+                "The number of students are increasing.",
+                "A number of students is attending.",
+                "The number of students is increasing.",
+                "A number of student are attending.",
+            ],
+            "correct": 2,
+            "explanation": "'The number' is singular; 'a number' is plural. 'The number of students is' is correct.",
+        },
+        {
+            "question": "Pick the correct comparative: 'This essay is ___ the previous one.'",
+            "options": [
+                "more better than",
+                "better than",
+                "more good than",
+                "gooder than",
+            ],
+            "correct": 1,
+            "explanation": "'Better' is already a comparative. Never use 'more better'.",
+        },
+    ],
+    "vocab": [
+        {
+            "question": "What does 'ubiquitous' mean?",
+            "options": [
+                "Appearing everywhere / very common",
+                "Extremely rare",
+                "Highly dangerous",
+                "Difficult to understand",
+            ],
+            "correct": 0,
+            "explanation": "'Ubiquitous' means present, appearing, or found everywhere.",
+        },
+        {
+            "question": "Choose the correct collocations: 'make or do?' — '___ a mistake'",
+            "options": ["Do", "Make", "Have", "Take"],
+            "correct": 1,
+            "explanation": "'Make a mistake' is a fixed collocation in English.",
+        },
+        {
+            "question": "Which word best replaces 'important' in an IELTS essay for a higher band?",
+            "options": ["Big", "Crucial", "Main", "Good"],
+            "correct": 1,
+            "explanation": "'Crucial' is a precise, formal synonym that lifts your Lexical Resource score.",
+        },
+        {
+            "question": "What does 'mitigate' mean in academic writing?",
+            "options": [
+                "To make something worse",
+                "To measure something",
+                "To make something less severe",
+                "To ignore a problem",
+            ],
+            "correct": 2,
+            "explanation": "'Mitigate' means to lessen the severity or impact of something.",
+        },
+        {
+            "question": "Which word is a synonym for 'significant'?",
+            "options": ["Minor", "Considerable", "Slight", "Trivial"],
+            "correct": 1,
+            "explanation": "'Considerable' carries a similar meaning to 'significant' and is useful in formal writing.",
+        },
+        {
+            "question": "Select the word that means 'to make something worse':",
+            "options": ["Alleviate", "Exacerbate", "Mitigate", "Ameliorate"],
+            "correct": 1,
+            "explanation": "'Exacerbate' means to make a problem or situation worse.",
+        },
+        {
+            "question": "What is the noun form of 'analyse'?",
+            "options": ["Analysing", "Analysed", "Analysis", "Analyst"],
+            "correct": 2,
+            "explanation": "The noun form is 'analysis'. 'Analyst' is a person who analyses.",
+        },
+        {
+            "question": "Choose the academic paraphrase of 'people think': ",
+            "options": [
+                "Scholars argue",
+                "Guys believe",
+                "Folks reckon",
+                "Persons say",
+            ],
+            "correct": 0,
+            "explanation": "'Scholars argue / researchers suggest / critics contend' are all strong academic alternatives.",
+        },
+    ],
     "reading": [
         {
             "question": "A passage states that city bike-share usage rose 42% after new lanes were added. What is the best inference?",
@@ -32,18 +189,79 @@ FALLBACK_QUESTION_BANK = {
                 "Weather has no impact on transport choices",
             ],
             "correct": 0,
-            "explanation": "The statement links improved infrastructure with higher usage.",
+            "explanation": "The passage links improved infrastructure with higher usage — a causal inference.",
         },
         {
-            "question": "In IELTS Reading, which strategy usually helps with True/False/Not Given questions?",
+            "question": "In IELTS Reading, which strategy best helps with True/False/Not Given questions?",
             "options": [
-                "Match exact meaning, not just matching words",
-                "Read options before the passage only",
-                "Skip all unfamiliar vocabulary",
-                "Choose True when unsure",
+                "Match meaning precisely, not just matching words",
+                "Read only the questions, not the passage",
+                "Always choose 'Not Given' when unsure",
+                "Skip paragraphs with unfamiliar vocabulary",
             ],
             "correct": 0,
-            "explanation": "Paraphrase detection and meaning matching are key for this question type.",
+            "explanation": "Paraphrase detection is essential — wrong keywords can mislead you into wrong answers.",
+        },
+        {
+            "question": "A heading in a reading passage says 'The Decline of Coral Reefs'. What type of text structure is this?",
+            "options": [
+                "Cause-and-effect narrative",
+                "Descriptive classification",
+                "Problem-focused with implied causes",
+                "Sequential process description",
+            ],
+            "correct": 2,
+            "explanation": "Headings about 'decline' typically introduce a problem and explore contributing factors.",
+        },
+        {
+            "question": "When matching headings to paragraphs, which approach is most effective?",
+            "options": [
+                "Read all headings first, then skim each paragraph for the main idea",
+                "Read the paragraph word-for-word and find exact heading phrases",
+                "Skip the first and last paragraphs",
+                "Match headings alphabetically to paragraphs",
+            ],
+            "correct": 0,
+            "explanation": "Reading headings first lets you predict the theme before skimming for the main idea.",
+        },
+        {
+            "question": "The passage says: 'While productivity increased, employee wellbeing declined.' What rhetorical device is used?",
+            "options": ["Alliteration", "Concession and contrast", "Rhetorical question", "Personification"],
+            "correct": 1,
+            "explanation": "'While' introduces a concession; the clause that follows provides a contrasting outcome.",
+        },
+        {
+            "question": "If a passage states 'Research suggests X' — what does this indicate about certainty?",
+            "options": [
+                "X is proven beyond doubt",
+                "X is an unverified personal opinion",
+                "X is a tentative claim with some evidence",
+                "X has been officially rejected",
+            ],
+            "correct": 2,
+            "explanation": "Hedging language like 'suggests' signals a tentative, evidence-based claim, not a certainty.",
+        },
+        {
+            "question": "Which of the following is a 'Not Given' answer in IELTS Reading?",
+            "options": [
+                "The passage directly contradicts it",
+                "The passage confirms it with exact words",
+                "The passage implies the opposite meaning",
+                "The passage neither confirms nor contradicts it",
+            ],
+            "correct": 3,
+            "explanation": "'Not Given' means the passage provides no information — not that it's false.",
+        },
+        {
+            "question": "A question asks: 'What does the author IMPLY about solar energy?' — what should you focus on?",
+            "options": [
+                "Explicitly stated facts only",
+                "Meaning suggested between the lines",
+                "The author's biography",
+                "Other articles mentioned in the passage",
+            ],
+            "correct": 1,
+            "explanation": "'Imply' means the meaning is suggested indirectly — read between the lines.",
         },
     ],
     "listening": [
@@ -51,66 +269,355 @@ FALLBACK_QUESTION_BANK = {
             "question": "A speaker says: 'The seminar starts at quarter past nine, not nine-thirty.' What time should you write?",
             "options": ["9:05", "9:15", "9:30", "9:45"],
             "correct": 1,
-            "explanation": "Quarter past nine equals 9:15.",
+            "explanation": "Quarter past nine = 9:15. The speaker corrects the time explicitly.",
         },
         {
             "question": "Which listening skill is most useful for IELTS Section 1 form completion?",
             "options": [
                 "Accurate spelling and number recognition",
                 "Advanced literary analysis",
-                "Long essay planning",
-                "Memorizing all synonyms beforehand",
+                "Identifying abstract themes",
+                "Memorising all synonyms beforehand",
             ],
             "correct": 0,
-            "explanation": "Section 1 often tests practical details like names, numbers, and spelling.",
+            "explanation": "Section 1 tests practical details: names, dates, phone numbers, and spelling.",
+        },
+        {
+            "question": "In Section 4 (academic monologue), what should you focus on?",
+            "options": [
+                "Main ideas and supporting evidence",
+                "Speaker's tone only",
+                "Background noise to filter it out",
+                "Reading speed during the recording",
+            ],
+            "correct": 0,
+            "explanation": "Section 4 is complex and lecture-style — follow main arguments and their evidence.",
+        },
+        {
+            "question": "A speaker spells out: 'That's M-A-C-K-E-N-Z-I-E.' What should you write?",
+            "options": ["Mackenzie", "Mckenzie", "Makenzie", "Mackenzy"],
+            "correct": 0,
+            "explanation": "Following the letters given: M-A-C-K-E-N-Z-I-E = Mackenzie.",
+        },
+        {
+            "question": "Before the IELTS Listening test begins, what is the most effective strategy?",
+            "options": [
+                "Read questions and predict answer types",
+                "Wait and listen without reading anything",
+                "Memorise the answer sheet layout",
+                "Skip the instructions section",
+            ],
+            "correct": 0,
+            "explanation": "Predicting answer types (number, name, place, etc.) before listening improves accuracy.",
+        },
+        {
+            "question": "The speaker says: 'Registrations close on the fourteenth — that's a Friday.' What is the deadline?",
+            "options": ["Friday the 4th", "Thursday the 14th", "Friday the 14th", "The last Friday"],
+            "correct": 2,
+            "explanation": "The speaker gives both the date (14th) and day (Friday) — combine both for the answer.",
+        },
+        {
+            "question": "In map labelling questions, which approach is most effective?",
+            "options": [
+                "Study cardinal directions (N/S/E/W) and landmarks before listening",
+                "Draw your own map while listening",
+                "Wait until the end of the recording to fill in labels",
+                "Guess based on alphabetical order",
+            ],
+            "correct": 0,
+            "explanation": "Orientation before listening lets you track movement descriptions accurately.",
+        },
+        {
+            "question": "A speaker uses the word 'however' — what does this signal?",
+            "options": [
+                "A new topic unrelated to the previous one",
+                "A contrast or exception to the previous point",
+                "The end of the conversation",
+                "Agreement with the previous speaker",
+            ],
+            "correct": 1,
+            "explanation": "'However' is a contrast signal — the information that follows will contradict or qualify what came before.",
         },
     ],
     "writing": [
         {
-            "question": "For IELTS Writing Task 2, which structure is strongest?",
+            "question": "For IELTS Writing Task 2, which structure earns the highest Coherence and Cohesion score?",
             "options": [
-                "Clear introduction, body paragraphs with topic sentences, concise conclusion",
-                "One long paragraph with all ideas",
-                "Bullet points only",
-                "Copying the prompt and adding personal stories",
+                "Introduction → Body 1 (topic sentence + argument + example) → Body 2 → Conclusion",
+                "One long paragraph with all ideas jumbled together",
+                "Bullet points followed by a summary",
+                "Stream of consciousness without paragraphs",
             ],
             "correct": 0,
-            "explanation": "Logical structure and clear argument progression improve coherence and cohesion.",
+            "explanation": "Clear paragraphing with topic sentences and logical flow is rewarded under CC criteria.",
         },
         {
-            "question": "What improves Lexical Resource score in Writing?",
+            "question": "What improves your Lexical Resource (LR) score in Writing?",
             "options": [
-                "Using varied and precise vocabulary naturally",
-                "Repeating the same words for clarity",
-                "Using slang and abbreviations",
-                "Writing very short sentences only",
+                "Using varied, precise vocabulary naturally in context",
+                "Repeating the same advanced words 10 times",
+                "Using slang and informal abbreviations",
+                "Avoiding all complex vocabulary to prevent errors",
             ],
             "correct": 0,
-            "explanation": "Accurate variety and precision are rewarded more than forced complexity.",
+            "explanation": "Natural variety and precision are rewarded. Overuse or forced complexity are penalised.",
+        },
+        {
+            "question": "In Task 1 (Academic), which element is essential in the overview paragraph?",
+            "options": [
+                "Every single data point from the chart",
+                "The main trend or most significant feature",
+                "Your personal opinion on the data",
+                "A prediction about the future",
+            ],
+            "correct": 1,
+            "explanation": "The overview summarises the most significant overall trend — without it, Band 5 or lower.",
+        },
+        {
+            "question": "Which phrase correctly introduces a counter-argument in Task 2?",
+            "options": [
+                "On the other hand, critics argue that…",
+                "Very importantly however,",
+                "But opposite people think,",
+                "Nevertheless I agree because,",
+            ],
+            "correct": 0,
+            "explanation": "'On the other hand' is a natural, formal way to introduce the opposing view.",
+        },
+        {
+            "question": "What word count should you aim for in IELTS Writing Task 2?",
+            "options": [
+                "Exactly 250 words — no more, no less",
+                "At least 250 words (more is fine if quality is maintained)",
+                "Under 200 words for clarity",
+                "As many words as possible regardless of relevance",
+            ],
+            "correct": 1,
+            "explanation": "You must write at least 250 words. Going slightly over is acceptable if relevant.",
+        },
+        {
+            "question": "Which task response approach scores highest for a 'discuss both views' question?",
+            "options": [
+                "Present both views clearly, then give a balanced or supported personal opinion",
+                "Choose one view and ignore the other completely",
+                "Agree with whichever view the examiner seems to prefer",
+                "Write only about global trends without addressing the question",
+            ],
+            "correct": 0,
+            "explanation": "You must address BOTH views. Your opinion can be balanced or lean one way — but address both.",
+        },
+        {
+            "question": "What does 'Task Achievement' measure in Writing Task 2?",
+            "options": [
+                "How clearly you addressed all parts of the question",
+                "The number of vocabulary items used",
+                "Your handwriting clarity",
+                "Whether you used passive voice",
+            ],
+            "correct": 0,
+            "explanation": "TA checks if you answered ALL parts of the question fully and with relevant ideas.",
+        },
+        {
+            "question": "Which transition best shows a result or consequence?",
+            "options": ["However", "In contrast", "Consequently", "For instance"],
+            "correct": 2,
+            "explanation": "'Consequently' introduces a result. 'However' = contrast; 'For instance' = example.",
+        },
+    ],
+    "speaking": [
+        {
+            "question": "In IELTS Speaking Part 2, you have 1 minute to prepare. What is the best use of this time?",
+            "options": [
+                "Write a word outline for each bullet point on the cue card",
+                "Write out every sentence you plan to say",
+                "Spend 30 seconds panicking and 30 seconds writing",
+                "Ignore the cue card and speak freely",
+            ],
+            "correct": 0,
+            "explanation": "Brief bullet notes for each prompt point keeps you on track for the full 2 minutes.",
+        },
+        {
+            "question": "Which response demonstrates better Fluency and Coherence?",
+            "options": [
+                "'Um, I think, um, technology is, like, you know, good for, um, students.'",
+                "'Technology benefits students significantly — for example, it provides instant access to resources.'",
+                "'Technology. Students. Resources. Good.'",
+                "'I don't know much about this topic, sorry.'",
+            ],
+            "correct": 1,
+            "explanation": "Fluent, well-structured sentences with an example demonstrate coherence and range.",
+        },
+        {
+            "question": "What does the examiner assess in Part 3 (Discussion)?",
+            "options": [
+                "Your ability to discuss abstract ideas with developed reasoning",
+                "Whether you memorised prepared answers",
+                "Your knowledge of current events",
+                "Pronunciation of specific technical words only",
+            ],
+            "correct": 0,
+            "explanation": "Part 3 tests abstract thinking, opinion development, and coherent reasoning.",
+        },
+        {
+            "question": "Which filler phrase is MOST acceptable in IELTS Speaking?",
+            "options": [
+                "'Um, um, uh, like…'",
+                "'That's an interesting question — let me think about that for a moment.'",
+                "'I don't know.' (repeated)",
+                "'Can I have the next question?'",
+            ],
+            "correct": 1,
+            "explanation": "Buying time naturally is fine — it's far better than excessive fillers or silence.",
+        },
+        {
+            "question": "To improve your Grammatical Range score in Speaking, you should:",
+            "options": [
+                "Mix simple, compound, and complex sentence types naturally",
+                "Use only simple sentences to avoid errors",
+                "Repeat the same tense throughout",
+                "Avoid relative clauses entirely",
+            ],
+            "correct": 0,
+            "explanation": "Range means using different structures. Accuracy across various structures is rewarded.",
+        },
+        {
+            "question": "What does 'Pronunciation' scoring in IELTS Speaking focus on?",
+            "options": [
+                "Having a British or American accent",
+                "Clear articulation and effective use of stress, rhythm, and intonation",
+                "Never making any sound errors",
+                "Reading aloud perfectly without hesitation",
+            ],
+            "correct": 1,
+            "explanation": "Accent doesn't matter — intelligibility through stress, rhythm, and intonation does.",
+        },
+    ],
+    "mock_ielts": [
+        {
+            "question": "Which IELTS band score is typically required for UK university admission?",
+            "options": ["5.0", "5.5", "6.0–6.5", "9.0"],
+            "correct": 2,
+            "explanation": "Most UK universities require 6.0–6.5 overall, with no band below 5.5 or 6.0.",
+        },
+        {
+            "question": "How long is the IELTS Academic Writing test?",
+            "options": ["30 minutes", "60 minutes", "90 minutes", "2 hours"],
+            "correct": 1,
+            "explanation": "IELTS Writing is 60 minutes: ~20 min for Task 1 and ~40 min for Task 2.",
+        },
+        {
+            "question": "How many sections does the IELTS Listening test have?",
+            "options": ["2", "3", "4", "5"],
+            "correct": 2,
+            "explanation": "IELTS Listening has 4 sections, each with 10 questions (40 total).",
+        },
+        {
+            "question": "In IELTS Academic Reading, how many questions are there in total?",
+            "options": ["30", "35", "40", "45"],
+            "correct": 2,
+            "explanation": "IELTS Academic Reading: 3 passages, 40 questions in 60 minutes.",
+        },
+        {
+            "question": "What is the maximum band score achievable in each IELTS skill?",
+            "options": ["7.0", "8.0", "9.0", "10.0"],
+            "correct": 2,
+            "explanation": "Each skill is marked out of 9.0. The overall band is the average of all four.",
+        },
+        {
+            "question": "In IELTS Speaking Part 2, how long must you speak for?",
+            "options": ["30 seconds", "1 minute", "1–2 minutes", "3 minutes"],
+            "correct": 2,
+            "explanation": "You must speak for 1–2 minutes. Stopping early significantly lowers your Fluency score.",
         },
     ],
     "learning": [
         {
-            "question": "Which weekly plan best supports IELTS progress?",
+            "question": "Which weekly plan best supports IELTS band improvement?",
             "options": [
-                "Balanced practice across reading, listening, writing, and speaking",
+                "Balanced practice across reading, listening, writing, and speaking daily",
                 "Only mock tests every day",
                 "Only grammar drills for a month",
-                "No revision, only new content",
+                "No revision — only new content",
             ],
             "correct": 0,
-            "explanation": "Balanced skill coverage with review is more sustainable and effective.",
+            "explanation": "Balanced daily skill coverage with review is more effective than single-skill cramming.",
         },
         {
-            "question": "What is the most useful way to use feedback?",
+            "question": "What is the most useful way to use teacher feedback?",
             "options": [
                 "Convert repeated mistakes into targeted drills",
                 "Ignore low-scoring sections",
-                "Switch strategy daily",
-                "Focus only on strengths",
+                "Switch strategy after every session",
+                "Focus exclusively on strengths",
             ],
             "correct": 0,
-            "explanation": "Deliberate practice on recurring errors improves score consistency.",
+            "explanation": "Deliberate practice on recurring errors improves score consistency over time.",
+        },
+        {
+            "question": "How many days before your IELTS exam should you attempt a full mock test?",
+            "options": [
+                "The night before",
+                "2–4 weeks before (with time to act on results)",
+                "On the same day",
+                "Mock tests are not useful",
+            ],
+            "correct": 1,
+            "explanation": "Mocks 2–4 weeks out leave enough time to identify and fix weaknesses before exam day.",
+        },
+        {
+            "question": "Which habit most reliably builds IELTS Reading speed?",
+            "options": [
+                "Daily timed reading of academic articles with comprehension checks",
+                "Reading fiction novels only",
+                "Memorising dictionary definitions daily",
+                "Watching TV with subtitles only",
+            ],
+            "correct": 0,
+            "explanation": "Academic reading builds the vocabulary density and skimming skills needed for IELTS passages.",
+        },
+        {
+            "question": "What does a streak in your IELTS training represent?",
+            "options": [
+                "Number of questions answered in one sitting",
+                "Consecutive days of completing at least one practice task",
+                "Total number of mock tests taken",
+                "Score improvement across sessions",
+            ],
+            "correct": 1,
+            "explanation": "A streak tracks daily consistency — the single strongest predictor of long-term improvement.",
+        },
+        {
+            "question": "Which factor most distinguishes Band 7 from Band 8 in Writing?",
+            "options": [
+                "Word count alone",
+                "Consistent control of complex grammar and varied sophisticated vocabulary",
+                "Number of paragraphs",
+                "How quickly the essay was written",
+            ],
+            "correct": 1,
+            "explanation": "Band 8 demands consistent sophistication in both grammar and vocabulary — rare errors only.",
+        },
+        {
+            "question": "For a student stuck at Band 6, which focus area yields the fastest improvement?",
+            "options": [
+                "Identifying and drilling the specific question types they consistently fail",
+                "Studying all four skills equally with no prioritisation",
+                "Memorising Band 9 model answers word-for-word",
+                "Switching from Academic to General Training",
+            ],
+            "correct": 0,
+            "explanation": "Targeted drilling of weak question types is the highest-leverage way to break through a plateau.",
+        },
+        {
+            "question": "What is 'spaced repetition' and why is it useful for IELTS vocabulary?",
+            "options": [
+                "Reading the same word list every day — repetition is key",
+                "Reviewing vocabulary at increasing intervals to move it into long-term memory",
+                "Learning 100 new words in one session per week",
+                "Spacing out vocabulary books on a physical shelf",
+            ],
+            "correct": 1,
+            "explanation": "Spaced repetition (e.g. Anki) is scientifically proven to maximise long-term retention.",
         },
     ],
 }
@@ -524,6 +1031,38 @@ def get_quiz(quiz_id):
     return jsonify(quiz.to_dict(include_questions=True))
 
 
+@quizzes_bp.route("/<int:quiz_id>", methods=["DELETE"])
+@jwt_required()
+def delete_quiz(quiz_id):
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if user.role != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    quiz = Quiz.query.get_or_404(quiz_id)
+    # remove related questions and attempts
+    QuizQuestion.query.filter_by(quiz_id=quiz.id).delete()
+    QuizAttempt.query.filter_by(quiz_id=quiz.id).delete()
+    db.session.delete(quiz)
+    db.session.commit()
+    return jsonify({"message": "Quiz deleted"})
+
+
+@quizzes_bp.route("/<int:quiz_id>", methods=["PATCH"])
+@jwt_required()
+def update_quiz(quiz_id):
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if user.role != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    quiz = Quiz.query.get_or_404(quiz_id)
+    data = request.get_json(silent=True) or {}
+    for field in ["title", "category", "difficulty", "time_limit_min"]:
+        if field in data:
+            setattr(quiz, field, data[field])
+    db.session.commit()
+    return jsonify(quiz.to_dict())
+
+
 @quizzes_bp.route("/<int:quiz_id>/attempt", methods=["POST"])
 @jwt_required()
 def submit_attempt(quiz_id):
@@ -702,3 +1241,19 @@ def delete_resource(resource_id):
     db.session.delete(r)
     db.session.commit()
     return jsonify({"message": "Deleted"})
+
+
+@resources_bp.route("/<int:resource_id>", methods=["PATCH"])
+@jwt_required()
+def update_resource(resource_id):
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if user.role != "admin":
+        return jsonify({"error": "Admin only"}), 403
+    r = Resource.query.get_or_404(resource_id)
+    data = request.get_json(silent=True) or {}
+    for field in ["title", "description", "category", "type", "url"]:
+        if field in data:
+            setattr(r, field, data[field])
+    db.session.commit()
+    return jsonify(r.to_dict())
