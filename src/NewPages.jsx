@@ -399,6 +399,96 @@ export const QuizzesPage = () => {
   );
 };
 
+/* ─── Utility: Small three-dot menu for inline actions (used by several admin pages) ─── */
+export const ThreeDotMenu = ({ items = [] }) => {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18 }}>⋮</button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: 36, zIndex: 999, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 6 }}>
+          {items.map((it, i) => (
+            it === 'divider' ? <div key={i} style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} /> :
+            <button key={i} onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick(); }} style={{ display: 'block', padding: '8px 10px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>{it.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Writing timed session component (lightweight) ─── */
+export const WritingTimedSession = ({ onComplete }) => {
+  const [text, setText] = React.useState('');
+  const [minutes, setMinutes] = React.useState(20);
+  const [loading, setLoading] = React.useState(false);
+  const [result, setResult] = React.useState(null);
+
+  const run = async () => {
+    setLoading(true);
+    const res = await apiFetch('/ai/writing/timed-session', { method: 'POST', body: JSON.stringify({ text, minutes }) });
+    setLoading(false);
+    if (res && !res.error) { setResult(res); onComplete && onComplete(res); }
+  };
+
+  return (
+    <div style={card}>
+      <div style={{ fontWeight: 700, marginBottom: 8 }}>Timed Writing Practice</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <input type="number" value={minutes} onChange={e => setMinutes(parseInt(e.target.value || 0))} style={{ width: 120, padding: '8px 10px', borderRadius: 8 }} />
+        <button onClick={run} style={{ padding: '8px 12px', borderRadius: 8 }}>{loading ? 'Analyzing…' : 'Submit for Analysis'}</button>
+      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste your timed essay here" style={{ width: '100%', minHeight: 180, padding: 12, borderRadius: 10, background: 'var(--bg3)' }} />
+      {result && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontWeight: 700 }}>Band Estimate: {result.band_estimate}</div>
+          <div style={{ color: 'var(--muted)', marginTop: 6 }}>{result.pace_note}</div>
+          <ul style={{ marginTop: 8 }}>{(result.suggestions || []).map((s,i) => <li key={i} style={{ marginBottom: 6 }}>{s}</li>)}</ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Vocabulary flashcard deck (very lightweight) ─── */
+export const VocabFlashcardDeck = ({ userId }) => {
+  const [cards, setCards] = React.useState([]);
+  const [idx, setIdx] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    apiFetch('/vocabulary/').then(d => { setCards(Array.isArray(d) ? d : []); setLoading(false); });
+  }, []);
+
+  const mark = async (correct) => {
+    const card = cards[idx];
+    if (!card) return;
+    await apiFetch(`/vocabulary/${card.id}/review`, { method: 'POST', body: JSON.stringify({ correct }) });
+    setIdx(i => (i + 1) % Math.max(1, cards.length));
+  };
+
+  if (loading) return <div style={card}>Loading cards…</div>;
+  if (!cards.length) return <div style={card}>No cards yet.</div>;
+  const card = cards[idx];
+  return (
+    <div style={card}>
+      <div style={{ fontWeight: 700, fontSize: 16 }}>{card.word}</div>
+      <div style={{ color: 'var(--muted)', marginTop: 8 }}>{card.definition}</div>
+      {card.example && <div style={{ marginTop: 8, fontStyle: 'italic' }}>“{card.example}”</div>}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button onClick={() => mark(true)} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--success)' }}>I knew this</button>
+        <button onClick={() => mark(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg3)' }}>Review again</button>
+      </div>
+    </div>
+  );
+};
+
 /* Inline quiz runner */
 const QuizRunner = ({ quiz, onDone }) => {
   const questions = quiz.questions || [];

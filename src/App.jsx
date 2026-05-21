@@ -1,5 +1,6 @@
 
 import { LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
+import AdminStudentsPage from "./pages/admin/Students.jsx";
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import {
@@ -2604,7 +2605,7 @@ const AdminReview = () => {
             </div>
             {(selected.task?.type || selected.type) === "speaking" && (
               <div style={{ marginBottom: 14 }}>
-                <Btn size="sm" variant="outline">▶ Play Student Recording</Btn>
+                <Btn size="sm" variant="outline" onClick={() => selected.file_url && window.open(selected.file_url, "_blank", "noopener,noreferrer")} disabled={!selected.file_url}>▶ Play Student Recording</Btn>
               </div>
             )}
             <div style={{ marginBottom: 14 }}>
@@ -2624,7 +2625,7 @@ const AdminReview = () => {
               <Btn onClick={saveFeedback} disabled={saving}>
                 {saving ? "Saving…" : "Save Feedback"}
               </Btn>
-              <Btn variant="outline" size="sm">Mark Reviewed</Btn>
+              <Btn variant="outline" size="sm" onClick={saveFeedback} disabled={saving}>Mark Reviewed</Btn>
             </div>
           </Card>
         )}
@@ -2820,7 +2821,17 @@ const AdminTasks = () => {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <Btn size="sm" variant="outline">Edit</Btn>
+                <Btn size="sm" variant="outline" onClick={async () => {
+                  const title = window.prompt("Task title", t.title);
+                  if (title == null) return;
+                  const description = window.prompt("Task description", t.description || t.desc || "") ?? "";
+                  await apiCall(`/tasks/${t.id}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ title: title.trim(), description: description.trim() }),
+                  });
+                  const refreshed = await apiCall(`/tasks/plan/${selectedPlan}/day/${day}`);
+                  setTasks(refreshed?.tasks || []);
+                }}>Edit</Btn>
                 <Btn size="sm" variant="danger" onClick={() => deleteTask(t.id)}>Remove</Btn>
               </div>
             </div>
@@ -2867,7 +2878,7 @@ export default function App() {
   };
   const adminPages = {
     "admin-home":     <AdminHome />,
-    "admin-students": <AdminStudents />,
+    "admin-students": <AdminStudentsPage />,
     "admin-plans":    <AdminPlans setPage={setPage} />,
     "admin-tasks":    <AdminTasks />,
     "admin-review":        <AdminReview />,

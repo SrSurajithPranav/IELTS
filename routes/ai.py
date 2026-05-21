@@ -133,6 +133,52 @@ def rewrite_writing():
     })
 
 
+
+@ai_bp.route('/writing/timed-session', methods=['POST'])
+@jwt_required()
+def timed_writing_session():
+    uid = int(get_jwt_identity())
+    if not User.query.get(uid):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    minutes = int(data.get('minutes') or 0)
+    if not text:
+        return jsonify({'error': 'text is required'}), 400
+    if minutes <= 0:
+        minutes = 20
+
+    analysis = check_grammar(text)
+    words = max(len(text.split()), 1)
+    wpm = round(words / max(1, minutes) * 60, 1)
+
+    band = min(9.0, round(4.5 + (analysis.get('grammar_score', 0) / 18) + (analysis.get('vocabulary_richness', 0) * 0.8), 1))
+
+    pace_note = None
+    if wpm < 15:
+        pace_note = 'Slow pace; try to plan and write with a clearer time allocation.'
+    elif wpm > 45:
+        pace_note = 'Fast pace; may have rushed structure and cohesion.'
+    else:
+        pace_note = 'Pacing is within expected ranges for practice sessions.'
+
+    suggestions = analysis.get('suggestions', [])[:6]
+    suggestions.append('Focus on paragraphing: ensure each paragraph has a clear topic sentence.')
+
+    return jsonify({
+        'transcript': text,
+        'analysis': analysis,
+        'words': words,
+        'minutes': minutes,
+        'wpm': wpm,
+        'band_estimate': band,
+        'pace_note': pace_note,
+        'suggestions': suggestions,
+        'source': 'timed-session-helper',
+    })
+
+
 @ai_bp.route('/speaking/analyze', methods=['POST'])
 @jwt_required()
 def analyze_speaking():

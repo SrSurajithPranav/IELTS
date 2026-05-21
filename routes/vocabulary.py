@@ -46,3 +46,43 @@ def patch_word(wid):
         word.example = data['example']
     db.session.commit()
     return jsonify(word.to_dict())
+
+
+@vocabulary_bp.route('/review-due', methods=['GET'])
+@jwt_required()
+def review_due():
+    uid = int(get_jwt_identity())
+    # Simple spaced repetition heuristic: due if never reviewed or last review > (2 ** review_count) days
+    from datetime import datetime, timedelta
+    rows = Vocabulary.query.filter_by(user_id=uid).all()
+    due = []
+    now = datetime.utcnow()
+    for w in rows:
+        if w.mastered:
+            continue
+        if not w.last_reviewed_at:
+            due.append(w)
+            continue
+        interval_days = 2 ** max(0, (w.review_count or 0))
+        if w.last_reviewed_at + timedelta(days=interval_days) <= now:
+            due.append(w)
+    return jsonify([w.to_dict() for w in due])
+
+
+@vocabulary_bp.route('/<int:wid>/review', methods=['POST'])
+@jwt_required()
+def mark_reviewed(wid):
+    uid = int(get_jwt_identity())
+    word = Vocabulary.query.get(wid)
+    if not word or word.user_id != uid:
+        return jsonify({'error': 'Not found'}), 404
+    data = request.get_json() or {}
+    correct = bool(data.get('correct', True))
+    from datetime import datetime
+    if correct:
+        word.review_count = (word.review_count or 0) + 1
+    else:
+        word.review_count = max(0, (word.review_count or 0) - 1)
+    word.last_reviewed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(word.to_dict())

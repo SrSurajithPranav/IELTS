@@ -221,6 +221,8 @@ export const quizzesAPI = {
     apiCall('/quizzes/generate-random', { method: 'POST', body: JSON.stringify(data) }),
   addQuestion: (quizId, data) =>
     apiCall(`/quizzes/${quizId}/questions`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => apiCall(`/quizzes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id) => apiCall(`/quizzes/${id}`, { method: 'DELETE' }),
 };
 
 // ── Resources ─────────────────────────────────────────────
@@ -229,6 +231,7 @@ export const resourcesAPI = {
     apiCall(category && category !== 'all' ? `/resources/?category=${category}` : '/resources/'),
   create: (data) => apiCall('/resources/', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id) => apiCall(`/resources/${id}`, { method: 'DELETE' }),
+  update: (id, data) => apiCall(`/resources/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 // ── AI ────────────────────────────────────────────────────
@@ -277,7 +280,8 @@ export const vocabularyAPI = {
   getWords: () => apiCall('/vocabulary/'),
   addWord: (data) => apiCall('/vocabulary/', { method: 'POST', body: JSON.stringify(data) }),
   practice: (wordId, correct) =>
-    apiCall(`/vocabulary/${wordId}/practice`, { method: 'POST', body: JSON.stringify({ correct }) }),
+    apiCall(`/vocabulary/${wordId}/review`, { method: 'POST', body: JSON.stringify({ correct }) }),
+  getDue: () => apiCall('/vocabulary/review-due'),
 };
 
 // ── Mistakes ──────────────────────────────────────────────
