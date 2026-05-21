@@ -5,6 +5,7 @@ AI helper utilities.
 """
 
 import requests
+import random
 
 LANGUAGETOOL_URL = "https://api.languagetool.org/v2/check"
 
@@ -94,3 +95,54 @@ def _get_suggestions(text, avg_sent_len, long_word_count, errors):
     if "in conclusion" not in text.lower() and "to conclude" not in text.lower():
         suggestions.append("Add a clear conclusion paragraph starting with 'In conclusion' or 'To conclude'")
     return suggestions[:6]
+
+
+def paraphrase_text(text: str, max_variants: int = 3):
+    """
+    Lightweight paraphrase generator using simple synonym substitutions and
+    structural shuffles. This is intentionally conservative — it's not a
+    production-grade paraphraser, but helps generate small variants when the
+    question pool is short.
+    """
+    synonyms = {
+        'most': ['most', 'the most', 'highly'],
+        'useful': ['useful', 'helpful', 'beneficial'],
+        'practice': ['practice', 'drills', 'exercises'],
+        'feedback': ['feedback', 'corrections', 'comments'],
+        'weekly': ['weekly', 'week-long', 'per-week'],
+        'best': ['best', 'most effective', 'most useful'],
+        'support': ['support', 'help', 'aid'],
+        'progress': ['progress', 'improvement', 'advancement'],
+    }
+
+    words = text.split()
+    variants = set()
+
+    # basic variant: synonym swaps for up to two words per variant
+    for i in range(max_variants * 2):
+        new_words = []
+        swaps = 0
+        for w in words:
+            key = w.strip('.,?').lower()
+            if key in synonyms and swaps < 2 and random.random() < 0.4:
+                choice = random.choice(synonyms[key])
+                # preserve punctuation
+                if w[-1] in '.,?':
+                    choice = choice + w[-1]
+                new_words.append(choice)
+                swaps += 1
+            else:
+                new_words.append(w)
+        candidate = ' '.join(new_words)
+        # structural shuffle: occasionally move a short leading clause to the end
+        if random.random() < 0.15 and ',' in candidate:
+            parts = [p.strip() for p in candidate.split(',') if p.strip()]
+            if len(parts) > 1:
+                candidate = ', '.join(parts[1:] + [parts[0]])
+        variants.add(candidate)
+        if len(variants) >= max_variants:
+            break
+
+    # ensure original text is not returned as a paraphrase
+    variants.discard(text)
+    return list(variants)

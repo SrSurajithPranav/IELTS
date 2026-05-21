@@ -8,6 +8,7 @@ from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
 from models.user import User
 from utils.scraper import scrape_public_page
+from utils.ai_helpers import paraphrase_text
 import random
 
 quizzes_bp = Blueprint("quizzes", __name__, url_prefix="/api/quizzes")
@@ -206,13 +207,20 @@ def _ensure_private_seed_resources(uid):
 
 def _resource_based_questions(category, question_count):
     resources = Resource.query.filter(Resource.category.in_(_resource_categories_for(category))).all()
-    if len(resources) < 4:
+    if not resources:
         return []
 
+    # sample primary resources without replacement to avoid repeated stems
+    pick_count = min(question_count, len(resources))
+    primary_resources = random.sample(resources, k=pick_count)
+
     questions = []
-    for _ in range(question_count):
-        option_set = random.sample(resources, k=min(4, len(resources)))
-        answer = random.choice(option_set)
+    for answer in primary_resources:
+        # build options: include the correct answer and up to 3 distractors
+        distractors = [r for r in resources if r.id != answer.id]
+        option_count = min(3, len(distractors))
+        option_set = random.sample(distractors, k=option_count) if option_count > 0 else []
+        option_set = option_set + [answer]
         random.shuffle(option_set)
         correct_index = next((idx for idx, item in enumerate(option_set) if item.id == answer.id), 0)
         focus = category.capitalize()
@@ -224,6 +232,7 @@ def _resource_based_questions(category, question_count):
                 "explanation": f"{answer.title} is the best match. Use it here: {answer.url}",
             }
         )
+
     return questions
 
 
@@ -347,8 +356,54 @@ def generate_random_quiz():
         question_count = len(generated_questions)
     else:
         generated_questions = _resource_based_questions(category, question_count)
+        # If resource-based answers are fewer than requested, try to top up from fallback
         if len(generated_questions) < question_count:
-            generated_questions = _fallback_questions(category, question_count)
+            needed = question_count - len(generated_questions)
+            more = _fallback_questions(category, needed)
+            generated_questions.extend(more)
+
+        # Deduplicate by normalized question text
+        unique = []
+        seen = set()
+        for itm in generated_questions:
+            qtext = (itm.get('question') or '').strip().lower()
+            if qtext and qtext not in seen:
+                seen.add(qtext)
+                unique.append(itm)
+
+        # If still short, attempt to expand using paraphrases of existing items
+        if len(unique) < question_count:
+            needed = question_count - len(unique)
+            # try generating paraphrases from fallback bank first
+            bank_candidates = []
+            bank_candidates.extend(_fallback_questions(category, min(6, 6)))
+            # include existing unique items as candidates for paraphrasing
+            bank_candidates.extend(unique)
+
+            for candidate in bank_candidates:
+                if len(unique) >= question_count:
+                    break
+                base_q = candidate.get('question')
+                if not base_q:
+                    continue
+                variants = paraphrase_text(base_q, max_variants=3)
+                for v in variants:
+                    if len(unique) >= question_count:
+                        break
+                    v_norm = v.strip().lower()
+                    if v_norm in seen:
+                        continue
+                    # create a new item copying options/explanation (if available)
+                    new_item = {
+                        'question': v,
+                        'options': candidate.get('options', [])[:],
+                        'correct': candidate.get('correct', 0),
+                        'explanation': candidate.get('explanation', ''),
+                    }
+                    seen.add(v_norm)
+                    unique.append(new_item)
+
+        generated_questions = unique
 
     quiz = Quiz(
         title=title,
