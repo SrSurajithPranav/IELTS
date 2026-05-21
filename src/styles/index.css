@@ -398,6 +398,42 @@ input::placeholder, textarea::placeholder { color: var(--muted2); }
   box-shadow: var(--shadow-lg);
 }
 
+/* ── Buttons & Micro-interactions ───────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  color: var(--on-accent);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm), var(--shadow-glow);
+  transition: transform 220ms var(--ease-spring), box-shadow 220ms var(--ease);
+  font-weight: 600;
+}
+.btn:active { transform: translateY(1px) scale(0.995); }
+.btn.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+/* Make interactions feel slightly 'human' with subtle randomness */
+.human-gesture {
+  transform-origin: center;
+  transition: transform 280ms var(--ease-spring);
+}
+.human-gesture:hover { transform: translateY(-3px) rotate(-0.2deg); }
+
+/* Slightly slower skeleton shimmer for more natural feel */
+.skeleton { animation-duration: 1.9s; }
+
+/* Reduce motion for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
 /* ── Animated Gradient Background ──────────────────────── */
 .gradient-bg {
   background: linear-gradient(135deg, var(--accent-soft), var(--gold-soft), var(--purple-soft));
