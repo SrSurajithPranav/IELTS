@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { notificationsAPI } from '../services/api';
+import { notificationsAPI, API_BASE_URL } from '../services/api';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 
@@ -19,6 +19,26 @@ export default function NotificationCenter() {
   };
 
   useEffect(() => { if (open) load(); }, [open]);
+
+  // Live updates via Server-Sent Events
+  useEffect(() => {
+    const token = localStorage.getItem('jwt_token');
+    if (!token) return;
+    const url = `${API_BASE_URL}/notifications/stream?access_token=${token}`;
+    const es = new EventSource(url);
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setNotes((prev) => [data].concat(prev));
+      } catch (err) {
+        // ignore
+      }
+    };
+    es.onerror = () => {
+      es.close();
+    };
+    return () => es.close();
+  }, []);
 
   const markRead = async (id) => {
     try {

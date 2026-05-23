@@ -27,6 +27,7 @@ const ADMIN_NAV = [
   { id: 'admin-tasks',     icon: '✓',  label: 'Tasks',        group: 'manage' },
   { id: 'admin-sessions',  icon: '🎙', label: 'Sessions',     group: 'manage' },
   { id: 'admin-resources', icon: '📚', label: 'Resources',    group: 'manage' },
+  { id: 'admin-job-tokens',icon: '🔐', label: 'Job Tokens',   group: 'manage' },
   { id: 'admin-quizzes',   icon: '🧩', label: 'Quiz Builder', group: 'manage' },
 ];
 
