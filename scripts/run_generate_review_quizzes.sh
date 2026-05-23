@@ -8,14 +8,21 @@ COUNT=${1:-8}
 MIN_FREQ=${2:-0}
 CATEGORY=${3:-}
 
-if [ -z "$ADMIN_JWT" ]; then
-  echo "Error: set ADMIN_JWT environment variable to a valid admin JWT token"
+if [ -z "$ADMIN_JWT" ] && [ -z "$JOB_TOKEN" ]; then
+  echo "Error: set ADMIN_JWT or JOB_TOKEN environment variable to authenticate"
   exit 2
 fi
 
 PAYLOAD=$(jq -n --argjson c $COUNT --argjson m $MIN_FREQ --arg cat "$CATEGORY" '{count: $c, min_frequency: $m} + (if ($cat|length) > 0 then {category: $cat} else {} end)')
 
-curl -s -X POST "$API_URL/quizzes/mistakes/create-bulk" \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD" | jq '.'
+if [ -n "$JOB_TOKEN" ]; then
+  curl -s -X POST "$API_URL/quizzes/mistakes/create-bulk" \
+    -H "X-JOB-TOKEN: $JOB_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD" | jq '.'
+else
+  curl -s -X POST "$API_URL/quizzes/mistakes/create-bulk" \
+    -H "Authorization: Bearer $ADMIN_JWT" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD" | jq '.'
+fi

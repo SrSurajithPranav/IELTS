@@ -143,6 +143,13 @@ export const feedbackAPI = {
     return multipartCall(`/feedback/${submissionId}`, formData);
   },
   getReviewAudits: () => apiCall('/quizzes/review-audits'),
+  exportReviewAuditsCsv: () => apiCall('/quizzes/review-audits.csv'),
+};
+
+export const adminAPI = {
+  createJobToken: (name, days = 7) => apiCall('/quizzes/admin/job-tokens', { method: 'POST', body: JSON.stringify({ name, days }) }),
+  listJobTokens: () => apiCall('/quizzes/admin/job-tokens'),
+  deleteJobToken: (id) => apiCall(`/quizzes/admin/job-tokens/${id}`, { method: 'DELETE' }),
 };
 
 export const notificationsAPI = {

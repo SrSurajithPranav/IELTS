@@ -308,7 +308,33 @@ export default function AdminStudents() {
       </Modal>
 
       {/* Audits Modal */}
-      <Modal open={auditOpen} onClose={() => setAuditOpen(false)} title="Review Generation Audits">
+      <Modal open={auditOpen} onClose={() => setAuditOpen(false)} title="Review Generation Audits"
+        footer={<>
+          <Button variant="ghost" onClick={() => setAuditOpen(false)}>Close</Button>
+          <Button onClick={async () => {
+            try {
+              // attempt direct CSV download from server
+              const res = await quizzesAPI.exportReviewAuditsCsv();
+              if (typeof res === 'string') {
+                const blob = new Blob([res], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'review_audits.csv'; document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+                return;
+              }
+              // Fallback: build CSV client-side
+              const rows = audits;
+              if (!rows || rows.length === 0) return;
+              const header = Object.keys(rows[0]);
+              const csv = [header.join(',')].concat(rows.map(r => header.map(h => `"${(r[h]||'').toString().replace(/"/g,'""')}"`).join(','))).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = 'review_audits.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            } catch (e) { notifyError(e.message || 'Export failed'); }
+          }}>Export CSV</Button>
+        </>}
+      >
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
           {audits.length === 0 ? <div style={{ color: 'var(--muted)' }}>No audits found.</div> : audits.map(a => (
             <div key={a.id} style={{ padding: 10, borderRadius: 8, background: 'var(--bg3)', marginBottom: 8 }}>

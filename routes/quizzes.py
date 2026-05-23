@@ -9,6 +9,7 @@ from models.resource import Resource
 from models.mistake import Mistake
 from models.user import User
 from models.review_audit import ReviewAudit
+from models.job_token import ReviewJobToken
 from models.notification import Notification
 from utils.scraper import scrape_public_page
 from utils.ai_helpers import paraphrase_text
@@ -1358,11 +1359,21 @@ def create_review_quiz_for_user():
 @quizzes_bp.route('/mistakes/create-bulk', methods=['POST'])
 @jwt_required()
 def create_review_quizzes_bulk():
-    """Admin-only: create review quizzes for multiple students. Accepts JSON { user_ids: [int], count: int } or runs for all students with mistakes."""
-    current_uid = int(get_jwt_identity())
-    user = User.query.get(current_uid)
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Admin only'}), 403
+    """Admin-only or job-token: create review quizzes for multiple students. Accepts JSON { user_ids: [int], count: int, min_frequency, category } or runs for all students with mistakes."""
+    # Support job-token authentication for scheduled runs
+    job_token_value = request.headers.get('X-JOB-TOKEN') or request.args.get('job_token')
+    current_uid = None
+    if job_token_value:
+        token_row = ReviewJobToken.query.filter_by(token=job_token_value).first()
+        if not token_row or not token_row.is_valid():
+            return jsonify({'error': 'Invalid or expired job token'}), 403
+        current_uid = token_row.created_by
+        user = User.query.get(current_uid)
+    else:
+        current_uid = int(get_jwt_identity())
+        user = User.query.get(current_uid)
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Admin only'}), 403
 
     data = request.get_json(silent=True) or {}
     try:
@@ -1422,6 +1433,65 @@ def list_review_audits():
         return jsonify({'error': 'Admin only'}), 403
     audits = ReviewAudit.query.order_by(ReviewAudit.created_at.desc()).limit(200).all()
     return jsonify([a.to_dict() for a in audits])
+
+
+@quizzes_bp.route('/review-audits.csv', methods=['GET'])
+@jwt_required()
+def export_review_audits_csv():
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+    import csv
+    from io import StringIO
+    rows = ReviewAudit.query.order_by(ReviewAudit.created_at.desc()).limit(1000).all()
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['id', 'creator_id', 'student_id', 'quiz_id', 'question_count', 'min_frequency', 'category', 'created_at'])
+    for r in rows:
+        writer.writerow([r.id, r.creator_id, r.student_id, r.quiz_id, r.question_count, r.min_frequency, r.category or '', r.created_at.isoformat()])
+    output = si.getvalue()
+    return current_app.response_class(output, mimetype='text/csv')
+
+
+@quizzes_bp.route('/admin/job-tokens', methods=['POST'])
+@jwt_required()
+def create_job_token():
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+    data = request.get_json(silent=True) or {}
+    name = data.get('name')
+    days = int(data.get('days', 7) or 7)
+    token = ReviewJobToken.generate(creator_id=uid, name=name, days_valid=days)
+    return jsonify({'token': token.token, 'expires_at': token.expires_at.isoformat() if token.expires_at else None})
+
+
+@quizzes_bp.route('/admin/job-tokens', methods=['GET'])
+@jwt_required()
+def list_job_tokens():
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+    rows = ReviewJobToken.query.order_by(ReviewJobToken.created_at.desc()).all()
+    return jsonify([{'id': r.id, 'name': r.name, 'token': r.token, 'created_by': r.created_by, 'expires_at': r.expires_at.isoformat() if r.expires_at else None} for r in rows])
+
+
+@quizzes_bp.route('/admin/job-tokens/<int:tid>', methods=['DELETE'])
+@jwt_required()
+def delete_job_token(tid):
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+    row = ReviewJobToken.query.get(tid)
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 @quizzes_bp.route("/attempts/me", methods=["GET"])

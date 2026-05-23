@@ -163,6 +163,16 @@ def create_app(config_name=None):
         login_view = app.view_functions.get('auth.login')
         if login_view:
             limiter.limit("10 per minute")(login_view)
+        # Apply rate limits to heavy endpoints
+        bulk_view = app.view_functions.get('quizzes.create_review_quizzes_bulk')
+        if bulk_view:
+            limiter.limit("5 per minute")(bulk_view)
+        single_view = app.view_functions.get('quizzes.create_review_quiz_for_user')
+        if single_view:
+            limiter.limit("20 per hour")(single_view)
+        token_create = app.view_functions.get('quizzes.create_job_token')
+        if token_create:
+            limiter.limit("5 per day")(token_create)
     except Exception:
         pass
     

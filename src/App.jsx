@@ -21,6 +21,8 @@ import {
 import ThemeToggle from "./components/ThemeToggle";
 import DotMenu from "./components/ui/DotMenu";
 import AnnouncementBanner from "./components/AnnouncementBanner";
+import React from 'react';
+const NotificationCenter = React.lazy(() => import('./components/NotificationCenter'));
 import VocabularyPage from "./pages/VocabularyPage";
 import StudentGamesPage from "./pages/student/Games";
 
@@ -2988,7 +2990,14 @@ export default function App() {
   return (
     <ThemeProvider>
       <GlobalStyles />
-      <DebugBanner />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <DebugBanner />
+        <div style={{ marginRight: 18 }}>
+          <React.Suspense fallback={null}>
+            <NotificationCenter />
+          </React.Suspense>
+        </div>
+      </div>
       <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar page={page} setPage={setPage} user={user} onLogout={handleLogout} />
         <main style={{ marginLeft: "var(--sidebar-w)", flex: 1, padding: "32px 32px 32px", minHeight: "100vh", overflowY: "auto" }}>
