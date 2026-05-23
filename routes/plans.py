@@ -8,6 +8,7 @@ from models.user import User
 import datetime
 from utils.emailer import send_email
 from flask import current_app
+from routes.notifications import push_notification
 
 plans_bp = Blueprint('plans', __name__)
 
@@ -55,6 +56,31 @@ def _difficulty_for_day(day_number):
   if day_number <= 30:
     return 'intermediate'
   return 'advanced'
+
+
+def _parse_date(raw_value):
+  if not raw_value:
+    return None
+  if isinstance(raw_value, datetime.date):
+    return raw_value
+  try:
+    return datetime.date.fromisoformat(str(raw_value))
+  except (TypeError, ValueError):
+    return None
+
+
+def _create_student_plan(student_id, plan_id, *, due_date=None, reminder_days=3, start_date=None):
+  StudentPlan.query.filter_by(student_id=student_id, is_active=True).update({'is_active': False})
+  sp = StudentPlan(
+    student_id=student_id,
+    plan_id=plan_id,
+    start_date=start_date or datetime.date.today(),
+    due_date=due_date,
+    reminder_days=max(int(reminder_days or 0), 0),
+    is_active=True,
+  )
+  db.session.add(sp)
+  return sp
 
 @plans_bp.route('/', methods=['GET'])
 @jwt_required()
@@ -177,14 +203,28 @@ def assign_plan():
     if not plan:
       return jsonify({'error': 'plan not found'}), 404
 
-    StudentPlan.query.filter_by(student_id=student_id, is_active=True).update({'is_active': False})
-    sp = StudentPlan(
-        student_id=student_id,
-        plan_id=plan_id,
-        start_date=datetime.date.today()
+    due_date = _parse_date(data.get('due_date'))
+    try:
+      reminder_days = int(data.get('reminder_days', 3))
+    except (TypeError, ValueError):
+      reminder_days = 3
+
+    sp = _create_student_plan(
+        student_id,
+        plan_id,
+        due_date=due_date,
+        reminder_days=reminder_days,
     )
-    db.session.add(sp)
     db.session.commit()
+
+    if due_date:
+        push_notification(
+            student_id,
+            'New plan assigned',
+            f"{plan.name} is due on {due_date.isoformat()}. Reminder window: {sp.reminder_days} day(s).",
+            'reminder',
+        )
+        db.session.commit()
     return jsonify(sp.to_dict()), 201
 
 
@@ -237,6 +277,12 @@ def assign_plan_bulk():
     if not plan:
         return jsonify({'error': 'plan not found'}), 404
 
+    due_date = _parse_date(data.get('due_date'))
+    try:
+      reminder_days = int(data.get('reminder_days', 3))
+    except (TypeError, ValueError):
+      reminder_days = 3
+
     assigned = []
     skipped = []
     for raw_id in student_ids:
@@ -251,13 +297,67 @@ def assign_plan_bulk():
             skipped.append({'student_id': student_id, 'reason': 'student not found'})
             continue
 
-        StudentPlan.query.filter_by(student_id=student_id, is_active=True).update({'is_active': False})
-        sp = StudentPlan(student_id=student_id, plan_id=plan_id, start_date=datetime.date.today(), is_active=True)
-        db.session.add(sp)
+        sp = _create_student_plan(
+          student_id,
+          plan_id,
+          due_date=due_date,
+          reminder_days=reminder_days,
+        )
         assigned.append({'student_id': student_id, 'student_name': student.name})
 
     db.session.commit()
     return jsonify({'plan_id': plan_id, 'assigned': assigned, 'skipped': skipped}), 201
+
+
+    @plans_bp.route('/reminders/run', methods=['POST'])
+    @jwt_required()
+    def run_plan_reminders():
+      uid = int(get_jwt_identity())
+      user = User.query.get(uid)
+      if user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+
+      data = request.get_json(silent=True) or {}
+      try:
+        days_ahead = int(data.get('days_ahead', 3))
+      except (TypeError, ValueError):
+        days_ahead = 3
+      days_ahead = max(days_ahead, 0)
+      cutoff = datetime.date.today() + datetime.timedelta(days=days_ahead)
+
+      assignments = StudentPlan.query.filter_by(is_active=True).all()
+      notified = []
+      for assignment in assignments:
+        if not assignment.due_date or assignment.reminder_sent_at:
+          continue
+        if assignment.due_date > cutoff:
+          continue
+        if assignment.due_date < datetime.date.today():
+          continue
+
+        student = User.query.get(assignment.student_id)
+        plan = Plan.query.get(assignment.plan_id)
+        if not student or not plan:
+          continue
+
+        remaining = assignment.days_remaining()
+        push_notification(
+          student.id,
+          f"Reminder: {plan.name} is due soon",
+          f"{plan.name} is due on {assignment.due_date.isoformat()}. {remaining} day(s) remaining.",
+          'reminder',
+        )
+        assignment.reminder_sent_at = datetime.datetime.utcnow()
+        notified.append({
+          'student_id': student.id,
+          'student_name': student.name,
+          'plan_id': plan.id,
+          'plan_name': plan.name,
+          'due_date': str(assignment.due_date),
+        })
+
+      db.session.commit()
+      return jsonify({'notified': notified, 'count': len(notified)}), 200
 
 
 @plans_bp.route('/<int:plan_id>/generate-tasks', methods=['POST'])
@@ -371,6 +471,11 @@ def list_plan_assignments():
             'plan_id': assignment.plan_id,
             'plan_name': plan.name if plan else None,
             'start_date': str(assignment.start_date),
+            'due_date': str(assignment.due_date) if assignment.due_date else None,
+            'reminder_days': assignment.reminder_days,
+            'reminder_sent_at': assignment.reminder_sent_at.isoformat() if assignment.reminder_sent_at else None,
+            'days_remaining': assignment.days_remaining(),
+            'needs_reminder': assignment.needs_reminder(),
             'current_day': assignment.current_day(),
         })
     return jsonify(rows), 200
@@ -407,9 +512,8 @@ def select_plan():
     if not plan:
         return jsonify({'error': 'Plan not found'}), 404
 
-    StudentPlan.query.filter_by(student_id=uid, is_active=True).update({'is_active': False})
-    sp = StudentPlan(student_id=uid, plan_id=plan.id, start_date=datetime.date.today(), is_active=True)
-    db.session.add(sp)
+    _create_student_plan(uid, plan.id)
+    sp = StudentPlan.query.filter_by(student_id=uid, plan_id=plan.id, is_active=True).order_by(StudentPlan.id.desc()).first()
     db.session.commit()
 
     subject = f"New plan selection: {user.email}"

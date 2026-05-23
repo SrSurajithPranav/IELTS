@@ -1,5 +1,6 @@
 from flask import Flask, request
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import inspect, text
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flasgger import Flasgger
@@ -200,6 +201,21 @@ def create_app(config_name=None):
                 "password are URL-encoded, and that the host/user pair matches the "
                 "copy-pasted value from Supabase Dashboard."
             ) from exc
+
+        inspector = inspect(db.engine)
+        try:
+            student_plan_columns = {column['name'] for column in inspector.get_columns('student_plans')}
+            column_sql = {
+                'due_date': 'DATE',
+                'reminder_days': 'INTEGER DEFAULT 3',
+                'reminder_sent_at': 'TIMESTAMP',
+            }
+            for column_name, column_type in column_sql.items():
+                if column_name not in student_plan_columns:
+                    db.session.execute(text(f'ALTER TABLE student_plans ADD COLUMN {column_name} {column_type}'))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         # ── Seed default accounts so the app is usable on first run ──
         from models.user import User

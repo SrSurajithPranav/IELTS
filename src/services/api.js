@@ -151,18 +151,30 @@ export const plansAPI = {
   getMy: () => apiCall('/plans/my'),
   select: (planId) =>
     apiCall('/plans/select', { method: 'POST', body: JSON.stringify({ plan_id: planId }) }),
-  assign: (studentId, planId) =>
+  assign: (studentId, planId, options = {}) =>
     apiCall('/plans/assign', {
       method: 'POST',
-      body: JSON.stringify({ student_id: Number(studentId), plan_id: Number(planId) }),
+      body: JSON.stringify({
+        student_id: Number(studentId),
+        plan_id: Number(planId),
+        due_date: options.due_date || null,
+        reminder_days: options.reminder_days != null ? Number(options.reminder_days) : 3,
+      }),
     }),
-  assignBulk: (planId, studentIds) =>
+  assignBulk: (planId, studentIds, options = {}) =>
     apiCall('/plans/assign/bulk', {
       method: 'POST',
-      body: JSON.stringify({ plan_id: Number(planId), student_ids: studentIds.map(Number) }),
+      body: JSON.stringify({
+        plan_id: Number(planId),
+        student_ids: studentIds.map(Number),
+        due_date: options.due_date || null,
+        reminder_days: options.reminder_days != null ? Number(options.reminder_days) : 3,
+      }),
     }),
   generateTasks: (planId, data = {}) =>
     apiCall(`/plans/${planId}/generate-tasks`, { method: 'POST', body: JSON.stringify(data) }),
+  runReminders: (data = {}) =>
+    apiCall('/plans/reminders/run', { method: 'POST', body: JSON.stringify(data) }),
   create: (data) => apiCall('/plans', { method: 'POST', body: JSON.stringify(data) }),
 };
 

@@ -19,6 +19,7 @@ import {
   pushMistakeMemory,
 } from "./services/api";
 import ThemeToggle from "./components/ThemeToggle";
+import DotMenu from "./components/ui/DotMenu";
 import AnnouncementBanner from "./components/AnnouncementBanner";
 import VocabularyPage from "./pages/VocabularyPage";
 import StudentGamesPage from "./pages/student/Games";
@@ -2360,9 +2361,12 @@ const AdminStudents = () => {
 const AdminPlans = ({ setPage }) => {
   const [plans, setPlans] = useState([]);
   const [students, setStudents] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [assignPlanId, setAssignPlanId] = useState(null);
   const [assignStudentId, setAssignStudentId] = useState("");
+  const [assignDueDate, setAssignDueDate] = useState("");
+  const [assignReminderDays, setAssignReminderDays] = useState(3);
   const [planName, setPlanName] = useState("");
   const [planDays, setPlanDays] = useState(60);
   const [sessionType, setSessionType] = useState("solo");
@@ -2370,10 +2374,12 @@ const AdminPlans = ({ setPage }) => {
   const [planError, setPlanError] = useState("");
   const [planMsg, setPlanMsg] = useState("");
   const [savingPlan, setSavingPlan] = useState(false);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   const refreshPlans = async () => {
-    const res = await plansAPI.getAll();
+    const [res, activeAssignments] = await Promise.all([plansAPI.getAll(), plansAPI.getAssignments().catch(() => [])]);
     setPlans(res || []);
+    setAssignments(activeAssignments || []);
   };
 
   useEffect(() => {
@@ -2396,8 +2402,25 @@ const AdminPlans = ({ setPage }) => {
   const openAssign = (planId) => {
     setAssignPlanId(planId);
     setAssignStudentId("");
+    setAssignDueDate("");
+    setAssignReminderDays(3);
     setPlanError("");
     setPlanMsg("");
+  };
+
+  const runReminders = async () => {
+    setSendingReminders(true);
+    setPlanError("");
+    setPlanMsg("");
+    try {
+      const res = await plansAPI.runReminders({ days_ahead: 3 });
+      setPlanMsg(`Sent ${res?.count || 0} reminder notification(s).`);
+      await refreshPlans();
+    } catch (error) {
+      setPlanError(error.message || "Failed to send reminders.");
+    } finally {
+      setSendingReminders(false);
+    }
   };
 
   const assignPlan = async () => {
@@ -2409,12 +2432,16 @@ const AdminPlans = ({ setPage }) => {
     setPlanError("");
     setPlanMsg("");
     try {
-      await plansAPI.assign(Number(assignStudentId), Number(assignPlanId));
+      await plansAPI.assign(Number(assignStudentId), Number(assignPlanId), {
+        due_date: assignDueDate || null,
+        reminder_days: Number(assignReminderDays) || 3,
+      });
       const student = students.find((s) => Number(s.id) === Number(assignStudentId));
       const plan = plans.find((p) => Number(p.id) === Number(assignPlanId));
-      setPlanMsg(`Assigned ${plan?.name || "plan"} to ${student?.name || "student"}.`);
+      setPlanMsg(`Assigned ${plan?.name || "plan"} to ${student?.name || "student"}${assignDueDate ? `, due ${assignDueDate}.` : "."}`);
       setAssignPlanId(null);
       setAssignStudentId("");
+      setAssignDueDate("");
     } catch (error) {
       setPlanError(error.message || "Failed to assign plan.");
     } finally {
@@ -2456,7 +2483,15 @@ const AdminPlans = ({ setPage }) => {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div className="playfair fade-up" style={{ fontSize: 22, fontWeight: 700 }}>Plans</div>
-        <Btn onClick={() => setShowNew(e => !e)}>+ New Plan</Btn>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <DotMenu
+            items={[
+              { icon: "Refresh", label: "Refresh Plans", action: refreshPlans },
+              { icon: "Bell", label: sendingReminders ? "Sending Reminders..." : "Send Due Reminders", action: runReminders, disabled: sendingReminders },
+            ]}
+          />
+          <Btn onClick={() => setShowNew(e => !e)}>+ New Plan</Btn>
+        </div>
       </div>
 
       {planError && (
@@ -2513,6 +2548,13 @@ const AdminPlans = ({ setPage }) => {
             <div style={{ display: "flex", gap: 8 }}>
               <Btn size="sm" variant="outline" onClick={() => openConfigureTasks(p.id)}>Configure Tasks</Btn>
               <Btn size="sm" onClick={() => openAssign(p.id)}>Assign</Btn>
+              <DotMenu
+                size="sm"
+                items={[
+                  { icon: "Tasks", label: "Configure Tasks", action: () => openConfigureTasks(p.id) },
+                  { icon: "Assign", label: "Assign Student", action: () => openAssign(p.id) },
+                ]}
+              />
             </div>
           </Card>
         ))}
@@ -2532,9 +2574,57 @@ const AdminPlans = ({ setPage }) => {
               <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
             ))}
           </select>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Due Date</label>
+              <input
+                type="date"
+                style={inp}
+                value={assignDueDate}
+                onChange={(e) => setAssignDueDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 6 }}>Reminder Days Before</label>
+              <input
+                type="number"
+                min="0"
+                style={inp}
+                value={assignReminderDays}
+                onChange={(e) => setAssignReminderDays(e.target.value)}
+              />
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <Btn onClick={assignPlan} disabled={savingPlan}>{savingPlan ? "Assigning..." : "Assign Plan"}</Btn>
             <Btn variant="ghost" onClick={() => setAssignPlanId(null)}>Cancel</Btn>
+          </div>
+        </Card>
+      )}
+
+      {assignments.length > 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>Active Assignments</div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {assignments.map((item) => (
+              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: 12, borderRadius: 12, background: "var(--bg3)", border: "1px solid var(--border)" }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{item.student_name}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>{item.plan_name} · Day {item.current_day}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+                    Start {item.start_date}{item.due_date ? ` · Due ${item.due_date}` : ""}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: item.needs_reminder ? "var(--warn)" : "var(--success)" }}>
+                    {item.days_remaining == null ? "No deadline" : `${item.days_remaining} day(s) left`}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+                    Reminder window: {item.reminder_days ?? 3} day(s)
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}

@@ -11,13 +11,15 @@ export default function PlansPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePlanId, setActivePlanId] = useState(null);
+  const [activePlan, setActivePlan] = useState(null);
   const [choosing, setChoosing] = useState(null);
 
   useEffect(() => {
     Promise.all([plansAPI.getAll(), plansAPI.getMy()])
       .then(([all, my]) => {
         setPlans(all || []);
-        setActivePlanId(my?.[0]?.plan_id || null);
+        setActivePlan(my?.active_plan || null);
+        setActivePlanId(my?.active_plan?.plan_id || null);
       })
       .catch(() => setPlans([]))
       .finally(() => setLoading(false));
@@ -45,6 +47,15 @@ export default function PlansPage() {
         Solo plans include 1:1 coaching every 2 days. Group plans require attendance from all enrolled members.
       </p>
 
+      {activePlan?.due_date && (
+        <Card style={{ marginBottom: 16, border: '1px solid rgba(20,108,114,.22)', background: 'rgba(20,108,114,.05)' }}>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Current plan deadline</div>
+          <div style={{ fontWeight: 700 }}>
+            Due {activePlan.due_date} · reminder window {activePlan.reminder_days ?? 3} day(s)
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <SkeletonGrid count={4} cardHeight={180} />
       ) : plans.length === 0 ? (
@@ -71,6 +82,11 @@ export default function PlansPage() {
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                   Mode: <strong>{p.session_type}</strong>
                 </div>
+                {activePlanId === p.id && activePlan?.due_date && (
+                  <div style={{ fontSize: 12, color: 'var(--warn)', fontWeight: 600 }}>
+                    Due {activePlan.due_date}
+                  </div>
+                )}
                 <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, flex: 1 }}>
                   {p.description || 'Structured IELTS roadmap with speaking, writing, reading, and listening tasks.'}
                 </p>
