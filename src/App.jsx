@@ -2,6 +2,7 @@
 import { LiveSessionsPage, QuizzesPage, ResourcesPage, AdminSessionsMgr, AdminResourcesMgr, AdminQuizBuilder } from "./NewPages.jsx";
 import AdminStudentsPage from "./pages/admin/Students.jsx";
 import AdminJobTokens from "./pages/admin/JobTokens.jsx";
+import ReviewAudits from './pages/admin/ReviewAudits.jsx';
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import {
@@ -2974,6 +2975,7 @@ export default function App() {
     "admin-home":     <AdminHome />,
     "admin-students": <AdminStudentsPage />,
     "admin-job-tokens": <AdminJobTokens />,
+    "admin-audits":   <ReviewAudits />,
     "admin-plans":    <AdminPlans setPage={setPage} />,
     "admin-tasks":    <AdminTasks />,
     "admin-review":        <AdminReview />,

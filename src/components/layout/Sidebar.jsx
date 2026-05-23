@@ -23,6 +23,7 @@ const ADMIN_NAV = [
   { id: 'admin-home',      icon: '⊞',  label: 'Overview',     group: 'main' },
   { id: 'admin-students',  icon: '👥', label: 'Students',     group: 'main' },
   { id: 'admin-review',    icon: '🔍', label: 'Review',       group: 'main' },
+  { id: 'admin-audits',    icon: '📜', label: 'Audits',       group: 'main' },
   { id: 'admin-plans',     icon: '📋', label: 'Plans',        group: 'manage' },
   { id: 'admin-tasks',     icon: '✓',  label: 'Tasks',        group: 'manage' },
   { id: 'admin-sessions',  icon: '🎙', label: 'Sessions',     group: 'manage' },

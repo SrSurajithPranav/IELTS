@@ -20,9 +20,15 @@ export default function AdminJobTokens() {
   const create = async () => {
     try {
       const res = await adminAPI.createJobToken(name, Number(days));
-      alert('Token created. Copy it now: ' + res.token);
+      // Show token only once to admin, do not store plaintext token in UI
+      const token = res?.token;
+      if (token) {
+        // present token in a prompt so admin can copy safely
+        // eslint-disable-next-line no-alert
+        alert('Token created. Copy it now (will not be stored):\n' + token);
+      }
       load();
-    } catch (e) { alert('Create failed: ' + e.message); }
+    } catch (e) { alert('Create failed: ' + (e.message || e)); }
   };
 
   const remove = async (id) => {
