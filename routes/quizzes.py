@@ -825,6 +825,41 @@ def _fallback_questions(category, question_count):
     return repeated[:question_count]
 
 
+def generate_review_quiz_for_user(target_id, creator_id, count=8):
+    """Generate a Quiz object for a given user from their mistakes. Returns Quiz instance."""
+    mistakes = Mistake.query.filter_by(user_id=target_id).order_by(Mistake.frequency.desc()).all()
+    drills = []
+    if mistakes:
+        used = 0
+        for m in mistakes:
+            if used >= count:
+                break
+            cat = m.category or 'learning'
+            picks = _fallback_questions(cat, min(2, count - used))
+            for p in picks:
+                if used >= count:
+                    break
+                drills.append(p)
+                used += 1
+    if len(drills) < count:
+        drills.extend(_fallback_questions('learning', count - len(drills)))
+
+    quiz = Quiz(title=f"Review for student {target_id}", category='learning', difficulty='intermediate', time_limit_min=12, created_by=creator_id)
+    db.session.add(quiz)
+    db.session.flush()
+    for d in drills[:count]:
+        qq = QuizQuestion(
+            quiz_id=quiz.id,
+            question=d.get('question') or d.get('text') or '',
+            options='|'.join(d.get('options', d.get('opts', []))) if d.get('options') or d.get('opts') else '',
+            correct_index=d.get('correct') if isinstance(d.get('correct'), int) else int(d.get('correct_index') or 0),
+            explanation=d.get('explanation', ''),
+        )
+        db.session.add(qq)
+    db.session.commit()
+    return quiz
+
+
 def _preferred_categories_from_weak_areas(weak_areas):
     categories = []
     for area in weak_areas or []:
@@ -1290,6 +1325,40 @@ def create_review_quiz_for_user():
         db.session.add(qq)
     db.session.commit()
     return jsonify(quiz.to_dict(include_questions=True)), 201
+
+
+@quizzes_bp.route('/mistakes/create-bulk', methods=['POST'])
+@jwt_required()
+def create_review_quizzes_bulk():
+    """Admin-only: create review quizzes for multiple students. Accepts JSON { user_ids: [int], count: int } or runs for all students with mistakes."""
+    current_uid = int(get_jwt_identity())
+    user = User.query.get(current_uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        count = int(data.get('count', 8))
+    except Exception:
+        count = 8
+
+    user_ids = data.get('user_ids')
+    quizzes_created = []
+    if isinstance(user_ids, list) and user_ids:
+        targets = [int(x) for x in user_ids]
+    else:
+        # find users with mistakes
+        rows = db.session.query(Mistake.user_id).distinct().all()
+        targets = [r[0] for r in rows]
+
+    for tid in targets:
+        try:
+            q = generate_review_quiz_for_user(tid, current_uid, count)
+            quizzes_created.append(q.to_dict(include_questions=True))
+        except Exception:
+            continue
+
+    return jsonify({'created': len(quizzes_created), 'quizzes': quizzes_created})
 
 
 @quizzes_bp.route("/attempts/me", methods=["GET"])

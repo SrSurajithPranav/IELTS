@@ -212,7 +212,17 @@ export default function AdminStudents() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }} className="fade-up">
         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700 }}>Students 👥</div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>+ Add Student</Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button size="sm" variant="ghost" onClick={async () => {
+            if (!confirm('Run review generator for all students with logged mistakes?')) return;
+            try {
+              const res = await quizzesAPI.createBulkReview({ count: 8 });
+              success(`Created ${res.created || 0} quizzes`);
+              load();
+            } catch (e) { notifyError(e.message || 'Bulk generation failed'); }
+          }}>Run Bulk Review</Button>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>+ Add Student</Button>
+        </div>
       </div>
 
       <Card className="fade-up-2" style={{ marginBottom: 16, padding: '10px 14px' }}>

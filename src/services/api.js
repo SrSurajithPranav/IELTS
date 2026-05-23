@@ -238,6 +238,8 @@ export const quizzesAPI = {
     const suffix = q.toString() ? `?${q.toString()}` : '';
     return apiCall(`/quizzes/mistakes/review${suffix}`);
   },
+  createBulkReview: (opts = {}) =>
+    apiCall('/quizzes/mistakes/create-bulk', { method: 'POST', body: JSON.stringify({ user_ids: opts.userIds || undefined, count: opts.count || 8 }) }),
   addQuestion: (quizId, data) =>
     apiCall(`/quizzes/${quizId}/questions`, { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => apiCall(`/quizzes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
