@@ -21,6 +21,7 @@ import {
 import ThemeToggle from "./components/ThemeToggle";
 import AnnouncementBanner from "./components/AnnouncementBanner";
 import VocabularyPage from "./pages/VocabularyPage";
+import StudentGamesPage from "./pages/student/Games";
 
 // ─────────────────────────────────────────────
 // GLOBAL STYLES
@@ -2870,7 +2871,7 @@ export default function App() {
     debate:    <DebateModePage />,
     progress:  <ProgressPage user={user} />,
     mocktest:  <MockTestPage />,
-    games:     <GamesArenaPage />,
+    games:     <StudentGamesPage />,
     leaderboard: <LeaderboardPage />,
     liveclass: <LiveSessionsPage user={user} />,
     quizzes:   <QuizzesPage />,
