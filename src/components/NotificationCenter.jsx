@@ -20,24 +20,24 @@ export default function NotificationCenter() {
 
   useEffect(() => { if (open) load(); }, [open]);
 
-  // Live updates via Server-Sent Events
+  // Live updates via Socket.IO
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
     if (!token) return;
-    const url = `${API_BASE_URL}/notifications/stream?access_token=${token}`;
-    const es = new EventSource(url);
-    es.onmessage = (e) => {
+    let socket;
+    (async () => {
       try {
-        const data = JSON.parse(e.data);
-        setNotes((prev) => [data].concat(prev));
-      } catch (err) {
+        const { io } = await import('socket.io-client');
+        const base = API_BASE_URL.replace(/\/api$/, '');
+        socket = io(`${base}`, { query: { token } });
+        socket.on('notification', (data) => {
+          setNotes((prev) => [data].concat(prev));
+        });
+      } catch (e) {
         // ignore
       }
-    };
-    es.onerror = () => {
-      es.close();
-    };
-    return () => es.close();
+    })();
+    return () => { if (socket) socket.disconnect(); };
   }, []);
 
   const markRead = async (id) => {

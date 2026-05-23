@@ -10,15 +10,17 @@ from models.db import db
 from models.user import User
 from models.student_plan import StudentPlan
 from datetime import datetime
+from flask import current_app
 
 students_bp = Blueprint("students", __name__, url_prefix="/api/students")
 
 
 def _require_admin():
-    uid = get_jwt_identity()
+    uid = int(get_jwt_identity())
     user = User.query.get(uid)
-    if not user or user.role != "admin":
-        return None, jsonify({"error": "Admin only"}), 403
+    # Allow both admin and teacher roles to use teacher-facing student management
+    if not user or user.role not in ("admin", "teacher"):
+        return None, jsonify({"error": "Admin/Teacher only"}), 403
     return user, None, None
 
 
@@ -26,9 +28,10 @@ def _require_admin():
 @jwt_required()
 def create_student():
     """Teacher creates a student with chosen email + password."""
-    _, err, code = _require_admin()
-    if err:
-        return err, code
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role not in ("admin", "teacher"):
+        return jsonify({"error": "Admin/Teacher only"}), 403
 
     data = request.get_json(silent=True) or {}
     required = ["name", "email", "password"]
@@ -73,9 +76,12 @@ def create_student():
 @students_bp.route("/", methods=["GET"])
 @jwt_required()
 def list_students():
-    _, err, code = _require_admin()
-    if err:
-        return err, code
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    current_app.logger.info(f"list_students called by uid={uid} role={getattr(user,'role',None)}")
+    if not user or user.role not in ("admin", "teacher"):
+        current_app.logger.info("list_students: permission denied")
+        return jsonify({"error": "Admin/Teacher only"}), 403
     students = User.query.filter_by(role="student").order_by(User.created_at.desc()).all()
     result = []
     for s in students:
@@ -90,9 +96,10 @@ def list_students():
 @students_bp.route("/<int:student_id>/reset-password", methods=["POST"])
 @jwt_required()
 def reset_password(student_id):
-    _, err, code = _require_admin()
-    if err:
-        return err, code
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role not in ("admin", "teacher"):
+        return jsonify({"error": "Admin/Teacher only"}), 403
     data = request.get_json(silent=True) or {}
     new_pass = data.get("password")
     if not new_pass or len(new_pass) < 6:
@@ -106,9 +113,10 @@ def reset_password(student_id):
 @students_bp.route("/<int:student_id>", methods=["PATCH"])
 @jwt_required()
 def update_student(student_id):
-    _, err, code = _require_admin()
-    if err:
-        return err, code
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role not in ("admin", "teacher"):
+        return jsonify({"error": "Admin/Teacher only"}), 403
     student = User.query.get_or_404(student_id)
     data = request.get_json(silent=True) or {}
     for field in ["name", "zoom_link", "weak_areas", "estimated_score"]:
@@ -124,9 +132,10 @@ def update_student(student_id):
 @students_bp.route("/<int:student_id>", methods=["DELETE"])
 @jwt_required()
 def delete_student(student_id):
-    _, err, code = _require_admin()
-    if err:
-        return err, code
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role not in ("admin", "teacher"):
+        return jsonify({"error": "Admin/Teacher only"}), 403
     student = User.query.get_or_404(student_id)
     db.session.delete(student)
     db.session.commit()

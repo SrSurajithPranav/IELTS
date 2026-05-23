@@ -29,7 +29,16 @@ def create_app(config_name=None):
     
     app = Flask(__name__)
     app.config.from_object(config[config_name])
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
+    # Ensure JWT secret is available in development/testing for a smoother DX.
+    # In production, require explicit env var to avoid leaking secrets.
+    if not app.config.get('JWT_SECRET_KEY'):
+        if config_name in ('development', 'testing'):
+            app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY') or 'dev-jwt-secret'
+            # Flask sessions also rely on SECRET_KEY in some extensions
+            app.config.setdefault('SECRET_KEY', app.config['JWT_SECRET_KEY'])
+        else:
+            # Leave unset in production; config.ProductionConfig.init_app should validate.
+            pass
     app.url_map.strict_slashes = False  # Prevent 308 redirects that drop Authorization header
 
     # Run config-specific validation (e.g. ProductionConfig checks DATABASE_URL)
@@ -39,6 +48,9 @@ def create_app(config_name=None):
     
     # Initialize extensions
     db.init_app(app)
+    # Initialize Socket.IO (extensions.socketio) so other modules can emit
+    from extensions import socketio
+    socketio.init_app(app, cors_allowed_origins='*')
     JWTManager(app)
     CORS(app,
          resources={r"/api/.*": {"origins": "*"}},

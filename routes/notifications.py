@@ -2,6 +2,9 @@ from flask import Blueprint, jsonify, Response, stream_with_context, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from models.db import db
 from models.notification import Notification
+from extensions import socketio
+from flask_socketio import join_room, disconnect
+from flask_jwt_extended import decode_token
 import time
 import json
 
@@ -101,4 +104,24 @@ def push_notification(user_id, title, body, notif_type='info'):
     notif = Notification(user_id=user_id, title=title, body=body, type=notif_type)
     db.session.add(notif)
     db.session.commit()
+    # Emit via Socket.IO to the user's room if connected
+    try:
+        socketio.emit('notification', notif.to_dict(), room=f'user_{user_id}')
+    except Exception:
+        pass
     return notif
+
+
+@socketio.on('connect')
+def handle_connect():
+    # Expect token via query string: ?token=...
+    token = request.args.get('token') or request.args.get('access_token')
+    if not token:
+        disconnect()
+        return
+    try:
+        decoded = decode_token(token)
+        uid = int(decoded.get('sub'))
+        join_room(f'user_{uid}')
+    except Exception:
+        disconnect()
