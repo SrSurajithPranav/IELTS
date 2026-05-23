@@ -53,6 +53,13 @@
 - Cost estimates
 - Start here for quick lookup
 
+### 8️⃣ I Need Feature Verification Steps
+👉 Read: **FEATURE_VERIFICATION_GUIDE.md**
+- Frontend login checks
+- Admin / teacher / student flows
+- Live notifications, job tokens, audit exports
+- Step-by-step validation checklist
+
 ---
 
 ## 📖 Complete Guide Map

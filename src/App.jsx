@@ -23,7 +23,6 @@ import {
 import ThemeToggle from "./components/ThemeToggle";
 import DotMenu from "./components/ui/DotMenu";
 import AnnouncementBanner from "./components/AnnouncementBanner";
-import React from 'react';
 const NotificationCenter = React.lazy(() => import('./components/NotificationCenter'));
 import VocabularyPage from "./pages/VocabularyPage";
 import StudentGamesPage from "./pages/student/Games";

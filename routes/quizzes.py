@@ -16,6 +16,7 @@ from utils.ai_helpers import paraphrase_text
 from utils.emailer import send_email
 from functools import lru_cache
 from pathlib import Path
+from datetime import datetime
 import json
 import random
 from flask import current_app
@@ -1431,7 +1432,33 @@ def list_review_audits():
     user = User.query.get(uid)
     if not user or user.role != 'admin':
         return jsonify({'error': 'Admin only'}), 403
-    audits = ReviewAudit.query.order_by(ReviewAudit.created_at.desc()).limit(200).all()
+    q = ReviewAudit.query
+    creator_id = request.args.get('creator_id')
+    student_id = request.args.get('student_id')
+    category = request.args.get('category')
+    from_date = request.args.get('from')
+    to_date = request.args.get('to')
+
+    if creator_id:
+        q = q.filter(ReviewAudit.creator_id == int(creator_id))
+    if student_id:
+        q = q.filter(ReviewAudit.student_id == int(student_id))
+    if category:
+        q = q.filter(ReviewAudit.category == category)
+    if from_date:
+        try:
+            start = datetime.fromisoformat(f"{from_date}T00:00:00")
+            q = q.filter(ReviewAudit.created_at >= start)
+        except ValueError:
+            pass
+    if to_date:
+        try:
+            end = datetime.fromisoformat(f"{to_date}T23:59:59")
+            q = q.filter(ReviewAudit.created_at <= end)
+        except ValueError:
+            pass
+
+    audits = q.order_by(ReviewAudit.created_at.desc()).limit(200).all()
     return jsonify([a.to_dict() for a in audits])
 
 
@@ -1444,7 +1471,33 @@ def export_review_audits_csv():
         return jsonify({'error': 'Admin only'}), 403
     import csv
     from io import StringIO
-    rows = ReviewAudit.query.order_by(ReviewAudit.created_at.desc()).limit(1000).all()
+    q = ReviewAudit.query
+    creator_id = request.args.get('creator_id')
+    student_id = request.args.get('student_id')
+    category = request.args.get('category')
+    from_date = request.args.get('from')
+    to_date = request.args.get('to')
+
+    if creator_id:
+        q = q.filter(ReviewAudit.creator_id == int(creator_id))
+    if student_id:
+        q = q.filter(ReviewAudit.student_id == int(student_id))
+    if category:
+        q = q.filter(ReviewAudit.category == category)
+    if from_date:
+        try:
+            start = datetime.fromisoformat(f"{from_date}T00:00:00")
+            q = q.filter(ReviewAudit.created_at >= start)
+        except ValueError:
+            pass
+    if to_date:
+        try:
+            end = datetime.fromisoformat(f"{to_date}T23:59:59")
+            q = q.filter(ReviewAudit.created_at <= end)
+        except ValueError:
+            pass
+
+    rows = q.order_by(ReviewAudit.created_at.desc()).limit(1000).all()
     si = StringIO()
     writer = csv.writer(si)
     writer.writerow(['id', 'creator_id', 'student_id', 'quiz_id', 'question_count', 'min_frequency', 'category', 'created_at'])
@@ -1476,7 +1529,7 @@ def list_job_tokens():
     if not user or user.role != 'admin':
         return jsonify({'error': 'Admin only'}), 403
     rows = ReviewJobToken.query.order_by(ReviewJobToken.created_at.desc()).all()
-    return jsonify([{'id': r.id, 'name': r.name, 'token': r.token, 'created_by': r.created_by, 'expires_at': r.expires_at.isoformat() if r.expires_at else None} for r in rows])
+    return jsonify([{'id': r.id, 'name': r.name, 'created_by': r.created_by, 'expires_at': r.expires_at.isoformat() if r.expires_at else None} for r in rows])
 
 
 @quizzes_bp.route('/admin/job-tokens/<int:tid>', methods=['DELETE'])
