@@ -54,14 +54,9 @@ def all_notifs():
     return jsonify([n.to_dict() for n in items])
 
 
-@notifs_bp.route('/read/<int:notif_id>', methods=['POST'])
-@jwt_required()
-def mark_read(notif_id):
-    uid = int(get_jwt_identity())
-    notif = Notification.query.filter_by(id=notif_id, user_id=uid).first_or_404()
-    notif.read = True
-    db.session.commit()
-    return jsonify({'ok': True})
+# Note: single endpoint for marking a notification read is defined earlier as
+# @notifs_bp.route('/<int:note_id>/read', methods=['POST']) -> mark_read(note_id)
+# keep that implementation for compatibility with frontend API.
 
 
 @notifs_bp.route('/read-all', methods=['POST'])
