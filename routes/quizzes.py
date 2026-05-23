@@ -9,6 +9,9 @@ from models.resource import Resource
 from models.user import User
 from utils.scraper import scrape_public_page
 from utils.ai_helpers import paraphrase_text
+from functools import lru_cache
+from pathlib import Path
+import json
 import random
 
 quizzes_bp = Blueprint("quizzes", __name__, url_prefix="/api/quizzes")
@@ -16,10 +19,43 @@ resources_bp = Blueprint("resources", __name__, url_prefix="/api/resources")
 
 QUIZ_CATEGORY_ALIASES = {
     "learning": ["learning", "general", "grammar", "vocab"],
+    "grammar": ["grammar", "general"],
+    "vocabulary": ["vocabulary", "vocab", "general"],
     "reading": ["reading", "general"],
     "listening": ["listening", "general"],
     "writing": ["writing", "general"],
+    "speaking": ["speaking", "general"],
+    "test_knowledge": ["test_knowledge", "learning", "general"],
+    "advanced": ["advanced", "learning", "general"],
+    "mock_ielts": ["mock_ielts"],
 }
+
+CATEGORY_SYNONYMS = {
+    "learning": "learning",
+    "general": "learning",
+    "grammar": "grammar",
+    "vocab": "vocabulary",
+    "vocabulary": "vocabulary",
+    "reading": "reading",
+    "listening": "listening",
+    "writing": "writing",
+    "speaking": "speaking",
+    "test_knowledge": "test_knowledge",
+    "advanced": "advanced",
+    "mock_ielts": "mock_ielts",
+}
+
+BANK_PATH = Path(__file__).resolve().parents[1] / "src" / "ielts_massive_training_bank.json"
+
+
+@lru_cache(maxsize=1)
+def _load_training_bank():
+    try:
+        with BANK_PATH.open(encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except FileNotFoundError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 FALLBACK_QUESTION_BANK = {
     "grammar": [
@@ -684,7 +720,40 @@ PRIVATE_SEED_RESOURCES = [
 
 def _normalized_category(value):
     raw = (value or "learning").strip().lower()
-    return raw if raw in QUIZ_CATEGORY_ALIASES else "learning"
+    return CATEGORY_SYNONYMS.get(raw, "learning")
+
+
+def _bank_questions(category, question_count, difficulty=None):
+    bank = _load_training_bank().get(category, [])
+    if not isinstance(bank, list) or not bank:
+        return []
+
+    filtered = [
+        item for item in bank
+        if not difficulty or (item.get("difficulty") or item.get("diff")) == difficulty
+    ]
+    pool = filtered or bank
+    sample_size = min(question_count, len(pool))
+    selected = random.sample(pool, sample_size) if sample_size else []
+
+    questions = []
+    for item in selected:
+        questions.append(
+            {
+                "id": item.get("id"),
+                "question": item.get("question") or item.get("q") or "",
+                "options": list(item.get("options") or item.get("opts") or []),
+                "correct": item.get("correct", item.get("c", 0)),
+                "explanation": item.get("explanation") or item.get("exp") or "",
+                "meta": {
+                    "skill": category,
+                    "difficulty": item.get("difficulty") or item.get("diff"),
+                    "tag": item.get("tag"),
+                },
+            }
+        )
+
+    return questions
 
 
 def _resource_categories_for(category):
@@ -823,7 +892,7 @@ def generate_random_quiz():
         return jsonify({"error": "Admin only"}), 403
 
     data = request.get_json(silent=True) or {}
-    category = _normalized_category(data.get("category"))
+    category = _normalized_category(data.get("skill") or data.get("category"))
     difficulty = (data.get("difficulty") or "intermediate").strip().lower()
     try:
         question_count = int(data.get("question_count", 8))
@@ -844,7 +913,7 @@ def generate_random_quiz():
         desired = ['reading', 'writing', 'listening', 'speaking']
         generated_questions = []
         for cat in desired:
-            qlist = _resource_based_questions(cat, 1)
+            qlist = _bank_questions(cat, 1, difficulty)
             if not qlist:
                 qlist = _fallback_questions(cat, 1)
             if qlist:
@@ -862,11 +931,13 @@ def generate_random_quiz():
         # Override the question count to actual generated length
         question_count = len(generated_questions)
     else:
-        generated_questions = _resource_based_questions(category, question_count)
-        # If resource-based answers are fewer than requested, try to top up from fallback
+        generated_questions = _bank_questions(category, question_count, difficulty)
+        # If the JSON bank is smaller than requested, top up from the existing fallback pools.
         if len(generated_questions) < question_count:
             needed = question_count - len(generated_questions)
             more = _fallback_questions(category, needed)
+            if len(more) < needed and category in {'reading', 'listening', 'writing', 'speaking'}:
+                more.extend(_resource_based_questions(category, needed - len(more)))
             generated_questions.extend(more)
 
         # Deduplicate by normalized question text

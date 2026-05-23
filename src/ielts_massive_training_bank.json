@@ -1,0 +1,270 @@
+{
+  "reading": [
+    {
+      "id": "R001",
+      "question": "In IELTS Reading, which strategy best helps with True/False/Not Given questions?",
+      "options": [
+        "Match meaning precisely, not just keywords",
+        "Read only the questions",
+        "Always choose Not Given when unsure",
+        "Skip unfamiliar paragraphs"
+      ],
+      "correct": 0,
+      "explanation": "Paraphrase matching is key.",
+      "difficulty": "intermediate",
+      "tag": "tfng-strategy"
+    },
+    {
+      "id": "R002",
+      "question": "What does 'Not Given' mean in IELTS Reading?",
+      "options": [
+        "The passage contradicts it",
+        "The passage confirms it",
+        "The passage implies the opposite",
+        "The passage neither confirms nor contradicts it"
+      ],
+      "correct": 3,
+      "explanation": "Not Given means insufficient information.",
+      "difficulty": "beginner",
+      "tag": "tfng"
+    },
+    {
+      "id": "R003",
+      "question": "When matching headings to paragraphs, which approach is most effective?",
+      "options": [
+        "Read headings first then skim paragraphs",
+        "Match headings alphabetically",
+        "Read everything word-for-word first",
+        "Skip introduction and conclusion"
+      ],
+      "correct": 0,
+      "explanation": "Skim for the main idea after previewing headings.",
+      "difficulty": "intermediate",
+      "tag": "heading-matching"
+    },
+    {
+      "id": "R004",
+      "question": "A passage says: 'Research suggests X.' What level of certainty does this indicate?",
+      "options": [
+        "Proven beyond doubt",
+        "Unverified opinion",
+        "Tentative evidence-based claim",
+        "Officially rejected"
+      ],
+      "correct": 2,
+      "explanation": "Suggests indicates a hedged claim.",
+      "difficulty": "advanced",
+      "tag": "hedging"
+    },
+    {
+      "id": "R005",
+      "question": "Which reading technique is best for quickly finding a specific name or date?",
+      "options": [
+        "Skimming",
+        "Scanning",
+        "Intensive reading",
+        "Extensive reading"
+      ],
+      "correct": 1,
+      "explanation": "Scanning finds specific details quickly.",
+      "difficulty": "beginner",
+      "tag": "reading-skills"
+    }
+  ],
+  "listening": [
+    {
+      "id": "L001",
+      "question": "A speaker says: 'The seminar starts at quarter past nine, not nine-thirty.' What time?",
+      "options": ["9:05", "9:15", "9:30", "9:45"],
+      "correct": 1,
+      "explanation": "Quarter past nine is 9:15.",
+      "difficulty": "beginner",
+      "tag": "number-recognition"
+    },
+    {
+      "id": "L002",
+      "question": "Which listening skill is most critical for Section 1 form completion?",
+      "options": [
+        "Accurate spelling and number recognition",
+        "Advanced literary analysis",
+        "Identifying abstract themes",
+        "Memorising all synonyms"
+      ],
+      "correct": 0,
+      "explanation": "Section 1 is practical detail heavy.",
+      "difficulty": "beginner",
+      "tag": "section-1"
+    },
+    {
+      "id": "L003",
+      "question": "A speaker spells: 'M-A-C-K-E-N-Z-I-E.' What should you write?",
+      "options": ["Mackenzie", "Mckenzie", "Makenzie", "Mackenzy"],
+      "correct": 0,
+      "explanation": "Letter-by-letter gives Mackenzie.",
+      "difficulty": "beginner",
+      "tag": "spelling"
+    },
+    {
+      "id": "L004",
+      "question": "Before Listening starts, what is most effective?",
+      "options": [
+        "Read questions and predict answer types",
+        "Wait and listen without reading",
+        "Memorise answer sheet layout",
+        "Skip instructions"
+      ],
+      "correct": 0,
+      "explanation": "Prediction improves focus.",
+      "difficulty": "intermediate",
+      "tag": "exam-strategy"
+    },
+    {
+      "id": "L005",
+      "question": "In Section 4 (academic lecture), what should you prioritise?",
+      "options": [
+        "Main ideas and supporting evidence",
+        "Speaker tone only",
+        "Background noise",
+        "Reading speed"
+      ],
+      "correct": 0,
+      "explanation": "Track the argument and evidence.",
+      "difficulty": "intermediate",
+      "tag": "section-4"
+    }
+  ],
+  "writing": [
+    {
+      "id": "W001",
+      "question": "For Task 2, which structure earns the highest Coherence and Cohesion score?",
+      "options": [
+        "Intro + Body 1 + Body 2 + Conclusion",
+        "One long paragraph",
+        "Bullet points + summary",
+        "Stream of consciousness"
+      ],
+      "correct": 0,
+      "explanation": "Clear paragraphing and development wins.",
+      "difficulty": "intermediate",
+      "tag": "essay-structure"
+    },
+    {
+      "id": "W002",
+      "question": "What improves Lexical Resource in Writing?",
+      "options": [
+        "Varied, precise vocabulary used naturally",
+        "Repeat the same advanced words",
+        "Use slang",
+        "Avoid complex vocabulary"
+      ],
+      "correct": 0,
+      "explanation": "Natural precision and variety are rewarded.",
+      "difficulty": "beginner",
+      "tag": "lexical-resource"
+    },
+    {
+      "id": "W003",
+      "question": "In Task 1 (Academic), what must the overview include?",
+      "options": ["Every data point", "Main trend or key feature", "Personal opinion", "Future prediction"],
+      "correct": 1,
+      "explanation": "Overview is mandatory for higher bands.",
+      "difficulty": "intermediate",
+      "tag": "task-1-overview"
+    },
+    {
+      "id": "W004",
+      "question": "Which phrase correctly introduces a counter-argument?",
+      "options": [
+        "On the other hand, critics argue that...",
+        "Very importantly however,",
+        "But opposite people think,",
+        "Nevertheless I agree because,"
+      ],
+      "correct": 0,
+      "explanation": "Formal and natural contrast phrase.",
+      "difficulty": "beginner",
+      "tag": "counter-argument"
+    },
+    {
+      "id": "W005",
+      "question": "What word count should you aim for in Task 2?",
+      "options": ["Exactly 250", "At least 250", "Under 200", "As many as possible"],
+      "correct": 1,
+      "explanation": "The minimum is 250 words.",
+      "difficulty": "beginner",
+      "tag": "word-count"
+    }
+  ],
+  "speaking": [
+    {
+      "id": "SP001",
+      "question": "In Part 2, best use of the 1-minute prep?",
+      "options": [
+        "Write a word outline for each bullet",
+        "Write every sentence",
+        "Panic then write",
+        "Ignore cue card"
+      ],
+      "correct": 0,
+      "explanation": "Bullet-note outline supports fluency.",
+      "difficulty": "beginner",
+      "tag": "part-2-strategy"
+    },
+    {
+      "id": "SP002",
+      "question": "Which response shows better Fluency and Coherence?",
+      "options": [
+        "Um... like... good...",
+        "Technology benefits students significantly because...",
+        "Technology. Students. Good.",
+        "I don't know."
+      ],
+      "correct": 1,
+      "explanation": "Structured response with reason and example.",
+      "difficulty": "beginner",
+      "tag": "fluency"
+    },
+    {
+      "id": "SP003",
+      "question": "What does examiner assess in Part 3?",
+      "options": [
+        "Abstract discussion with developed reasoning",
+        "Memorised answers",
+        "Only current events knowledge",
+        "Technical pronunciation only"
+      ],
+      "correct": 0,
+      "explanation": "Part 3 tests abstract reasoning and development.",
+      "difficulty": "intermediate",
+      "tag": "part-3"
+    },
+    {
+      "id": "SP004",
+      "question": "Which filler phrase is most acceptable?",
+      "options": [
+        "Um, um, uh...",
+        "That's an interesting question, let me think...",
+        "I don't know",
+        "Next question please"
+      ],
+      "correct": 1,
+      "explanation": "A natural thinking phrase is acceptable.",
+      "difficulty": "beginner",
+      "tag": "fillers"
+    },
+    {
+      "id": "SP005",
+      "question": "To improve Grammatical Range in Speaking, you should:",
+      "options": [
+        "Mix simple, compound, and complex sentences",
+        "Use only simple sentences",
+        "Repeat one tense",
+        "Avoid relative clauses"
+      ],
+      "correct": 0,
+      "explanation": "Range requires varied structures.",
+      "difficulty": "intermediate",
+      "tag": "grammatical-range"
+    }
+  ]
+}

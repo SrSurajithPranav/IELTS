@@ -1,5 +1,6 @@
 import React from "react";
 import { API_BASE_URL } from "./services/api";
+import DotMenu from "./components/ui/DotMenu";
 
 /**
  * NewPages.jsx
@@ -401,25 +402,20 @@ export const QuizzesPage = () => {
 
 /* ─── Utility: Small three-dot menu for inline actions (used by several admin pages) ─── */
 export const ThreeDotMenu = ({ items = [] }) => {
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18 }}>⋮</button>
-      {open && (
-        <div style={{ position: 'absolute', right: 0, top: 36, zIndex: 999, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 6 }}>
-          {items.map((it, i) => (
-            it === 'divider' ? <div key={i} style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} /> :
-            <button key={i} onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick(); }} style={{ display: 'block', padding: '8px 10px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>{it.label}</button>
-          ))}
-        </div>
-      )}
-    </div>
+    <DotMenu
+      items={items.map((item) => (
+        item === 'divider'
+          ? '---'
+          : {
+              icon: item.icon,
+              label: item.label,
+              danger: item.danger,
+              disabled: item.disabled,
+              action: item.onClick,
+            }
+      ))}
+    />
   );
 };
 
@@ -922,6 +918,7 @@ export const AdminQuizBuilder = () => {
   const [showNew, setShowNew] = useState(false);
   const [meta, setMeta] = useState({ title: "", category: "grammar", difficulty: "intermediate", time_limit_min: 10 });
   const [autoCount, setAutoCount] = useState(8);
+  const [autoSkill, setAutoSkill] = useState("reading");
   const [autoMsg, setAutoMsg] = useState("");
   const [autoLoading, setAutoLoading] = useState(false);
   const [questions, setQuestions] = useState([
@@ -956,8 +953,9 @@ export const AdminQuizBuilder = () => {
     setAutoMsg("");
     setAutoLoading(true);
     const payload = {
-      title: `${meta.category.charAt(0).toUpperCase()}${meta.category.slice(1)} Random Practice`,
-      category: meta.category,
+      title: `${autoSkill.charAt(0).toUpperCase()}${autoSkill.slice(1)} Random Practice`,
+      category: autoSkill,
+      skill: autoSkill,
       difficulty: meta.difficulty,
       time_limit_min: parseInt(meta.time_limit_min, 10) || 12,
       question_count: parseInt(autoCount, 10) || 8,
@@ -996,7 +994,25 @@ export const AdminQuizBuilder = () => {
             style={{ ...inp, width: 90 }}
             title="Question count"
           />
+          <select
+            value={autoSkill}
+            onChange={(e) => setAutoSkill(e.target.value)}
+            style={{ ...inp, width: 160 }}
+            title="Random quiz focus"
+          >
+            <option value="reading">Reading</option>
+            <option value="listening">Listening</option>
+            <option value="writing">Writing</option>
+            <option value="speaking">Speaking</option>
+          </select>
           <Btn onClick={autoGenerate} disabled={autoLoading}>{autoLoading ? "Generating..." : "Generate Random Quiz"}</Btn>
+          <DotMenu
+            items={[
+              { icon: "Refresh", label: "Refresh quizzes", action: refreshQuizzes },
+              { icon: showNew ? "Hide" : "New", label: showNew ? "Hide New Quiz" : "Show New Quiz", action: () => setShowNew((n) => !n) },
+              { icon: "Close", label: "Close preview", action: () => setPreviewQuiz(null), disabled: !previewQuiz },
+            ]}
+          />
           <Btn v="outline" onClick={() => setShowNew(n => !n)}>+ New Quiz</Btn>
         </div>
       </div>

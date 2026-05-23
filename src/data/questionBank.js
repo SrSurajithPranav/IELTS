@@ -1,3 +1,15 @@
+import trainingBank from '../ielts_massive_training_bank.json';
+
+const toLegacyQuestion = (item) => ({
+  id: item.id,
+  q: item.question,
+  opts: item.options,
+  c: item.correct,
+  exp: item.explanation,
+  diff: item.difficulty,
+  tag: item.tag,
+});
+
 export const GRAMMAR_QUESTIONS = [
   { id: 'G001', q: "Choose the correct passive: 'The project ___ by the team last week.'", opts: ['was completed', 'is completed', 'were completed', 'has completed'], c: 0, exp: "Past passive = was/were + past participle. 'Project' is singular.", diff: 'beginner', tag: 'passive-voice' },
   { id: 'G002', q: 'Which sentence uses a relative clause correctly?', opts: ['The student who passed was happy.', 'The student which passed was happy.', 'The student that he passed was happy.', 'The student, he passed, was happy.'], c: 0, exp: "Use 'who' for people.", diff: 'beginner', tag: 'relative-clauses' },
@@ -24,37 +36,13 @@ export const VOCAB_QUESTIONS = [
   { id: 'V010', q: "'The research ___ several unexpected patterns.' - best verb?", opts: ['showed', 'told', 'said', 'spoke'], c: 0, exp: "Research 'shows' or 'reveals'.", diff: 'beginner', tag: 'academic-verbs' },
 ];
 
-export const READING_QUESTIONS = [
-  { id: 'R001', q: 'In IELTS Reading, which strategy best helps with True/False/Not Given questions?', opts: ['Match meaning precisely, not just keywords', 'Read only the questions', 'Always choose Not Given when unsure', 'Skip unfamiliar paragraphs'], c: 0, exp: 'Paraphrase matching is key.', diff: 'intermediate', tag: 'tfng-strategy' },
-  { id: 'R002', q: "What does 'Not Given' mean in IELTS Reading?", opts: ['The passage contradicts it', 'The passage confirms it', 'The passage implies the opposite', 'The passage neither confirms nor contradicts it'], c: 3, exp: "'Not Given' means insufficient information.", diff: 'beginner', tag: 'tfng' },
-  { id: 'R003', q: 'When matching headings to paragraphs, which approach is most effective?', opts: ['Read headings first then skim paragraphs', 'Match headings alphabetically', 'Read everything word-for-word first', 'Skip introduction and conclusion'], c: 0, exp: 'Skim for main idea after previewing headings.', diff: 'intermediate', tag: 'heading-matching' },
-  { id: 'R004', q: "A passage says: 'Research suggests X.' What level of certainty does this indicate?", opts: ['Proven beyond doubt', 'Unverified opinion', 'Tentative evidence-based claim', 'Officially rejected'], c: 2, exp: "'Suggests' indicates hedged claim.", diff: 'advanced', tag: 'hedging' },
-  { id: 'R005', q: 'Which reading technique is best for quickly finding a specific name or date?', opts: ['Skimming', 'Scanning', 'Intensive reading', 'Extensive reading'], c: 1, exp: 'Scanning finds specific details quickly.', diff: 'beginner', tag: 'reading-skills' },
-];
+export const READING_QUESTIONS = (trainingBank.reading || []).map(toLegacyQuestion);
 
-export const LISTENING_QUESTIONS = [
-  { id: 'L001', q: "A speaker says: 'The seminar starts at quarter past nine, not nine-thirty.' What time?", opts: ['9:05', '9:15', '9:30', '9:45'], c: 1, exp: 'Quarter past nine is 9:15.', diff: 'beginner', tag: 'number-recognition' },
-  { id: 'L002', q: 'Which listening skill is most critical for Section 1 form completion?', opts: ['Accurate spelling and number recognition', 'Advanced literary analysis', 'Identifying abstract themes', 'Memorising all synonyms'], c: 0, exp: 'Section 1 is practical detail heavy.', diff: 'beginner', tag: 'section-1' },
-  { id: 'L003', q: "A speaker spells: 'M-A-C-K-E-N-Z-I-E.' What should you write?", opts: ['Mackenzie', 'Mckenzie', 'Makenzie', 'Mackenzy'], c: 0, exp: 'Letter-by-letter gives Mackenzie.', diff: 'beginner', tag: 'spelling' },
-  { id: 'L004', q: 'Before Listening starts, what is most effective?', opts: ['Read questions and predict answer types', 'Wait and listen without reading', 'Memorise answer sheet layout', 'Skip instructions'], c: 0, exp: 'Prediction improves focus.', diff: 'intermediate', tag: 'exam-strategy' },
-  { id: 'L005', q: 'In Section 4 (academic lecture), what should you prioritise?', opts: ['Main ideas and supporting evidence', 'Speaker tone only', 'Background noise', 'Reading speed'], c: 0, exp: 'Track argument and evidence.', diff: 'intermediate', tag: 'section-4' },
-];
+export const LISTENING_QUESTIONS = (trainingBank.listening || []).map(toLegacyQuestion);
 
-export const WRITING_QUESTIONS = [
-  { id: 'W001', q: 'For Task 2, which structure earns the highest Coherence and Cohesion score?', opts: ['Intro + Body 1 + Body 2 + Conclusion', 'One long paragraph', 'Bullet points + summary', 'Stream of consciousness'], c: 0, exp: 'Clear paragraphing and development wins.', diff: 'intermediate', tag: 'essay-structure' },
-  { id: 'W002', q: 'What improves Lexical Resource in Writing?', opts: ['Varied, precise vocabulary used naturally', 'Repeat the same advanced words', 'Use slang', 'Avoid complex vocabulary'], c: 0, exp: 'Natural precision and variety are rewarded.', diff: 'beginner', tag: 'lexical-resource' },
-  { id: 'W003', q: 'In Task 1 (Academic), what must the overview include?', opts: ['Every data point', 'Main trend or key feature', 'Personal opinion', 'Future prediction'], c: 1, exp: 'Overview is mandatory for higher bands.', diff: 'intermediate', tag: 'task-1-overview' },
-  { id: 'W004', q: 'Which phrase correctly introduces a counter-argument?', opts: ['On the other hand, critics argue that...', 'Very importantly however,', 'But opposite people think,', 'Nevertheless I agree because,'], c: 0, exp: 'Formal and natural contrast phrase.', diff: 'beginner', tag: 'counter-argument' },
-  { id: 'W005', q: 'What word count should you aim for in Task 2?', opts: ['Exactly 250', 'At least 250', 'Under 200', 'As many as possible'], c: 1, exp: 'Minimum is 250 words.', diff: 'beginner', tag: 'word-count' },
-];
+export const WRITING_QUESTIONS = (trainingBank.writing || []).map(toLegacyQuestion);
 
-export const SPEAKING_QUESTIONS = [
-  { id: 'SP001', q: 'In Part 2, best use of the 1-minute prep?', opts: ['Write a word outline for each bullet', 'Write every sentence', 'Panic then write', 'Ignore cue card'], c: 0, exp: 'Bullet-note outline supports fluency.', diff: 'beginner', tag: 'part-2-strategy' },
-  { id: 'SP002', q: 'Which response shows better Fluency and Coherence?', opts: ['Um... like... good...', 'Technology benefits students significantly because...', 'Technology. Students. Good.', "I don't know."], c: 1, exp: 'Structured response with reason and example.', diff: 'beginner', tag: 'fluency' },
-  { id: 'SP003', q: 'What does examiner assess in Part 3?', opts: ['Abstract discussion with developed reasoning', 'Memorised answers', 'Only current events knowledge', 'Technical pronunciation only'], c: 0, exp: 'Part 3 tests abstract reasoning and development.', diff: 'intermediate', tag: 'part-3' },
-  { id: 'SP004', q: 'Which filler phrase is most acceptable?', opts: ['Um, um, uh...', "That's an interesting question, let me think...", "I don't know", 'Next question please'], c: 1, exp: 'Natural thinking phrase is acceptable.', diff: 'beginner', tag: 'fillers' },
-  { id: 'SP005', q: 'To improve Grammatical Range in Speaking, you should:', opts: ['Mix simple, compound, and complex sentences', 'Use only simple sentences', 'Repeat one tense', 'Avoid relative clauses'], c: 0, exp: 'Range requires varied structures.', diff: 'intermediate', tag: 'grammatical-range' },
-];
+export const SPEAKING_QUESTIONS = (trainingBank.speaking || []).map(toLegacyQuestion);
 
 export const TEST_KNOWLEDGE_QUESTIONS = [
   { id: 'TK001', q: 'Which IELTS band score is typically required for UK university admission?', opts: ['5.0', '5.5', '6.0-6.5', '9.0'], c: 2, exp: 'Typical requirement is around 6.0-6.5 overall.', diff: 'beginner', tag: 'band-requirements' },

@@ -6,45 +6,22 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal, ConfirmModal } from '../../components/ui/Modal';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { useNotification } from '../../contexts/NotificationContext';
+import DotMenu from '../../components/ui/DotMenu';
 
 function ThreeDotMenu({ items }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
-          background: open ? 'var(--bg3)' : 'transparent', color: 'var(--muted)',
-          fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-        title="Options"
-      >⋮</button>
-      {open && (
-        <div style={{ position: 'absolute', right: 0, top: 36, zIndex: 999,
-          background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.12)',
-          minWidth: 160, overflow: 'hidden', animation: 'fadeIn .15s ease' }}>
-          {items.map((item, i) => (
-            item === 'divider'
-              ? <div key={i} style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-              : <button key={i} onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}
-                  style={{ width: '100%', padding: '10px 16px', background: 'none', border: 'none',
-                    textAlign: 'left', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-                    color: item.danger ? 'var(--danger)' : 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}
-                >
-                  <span>{item.icon}</span> {item.label}
-                </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <DotMenu
+      items={items.map((item) => (
+        item === 'divider'
+          ? '---'
+          : {
+              icon: item.icon,
+              label: item.label,
+              danger: item.danger,
+              action: item.onClick,
+            }
+      ))}
+    />
   );
 }
 
