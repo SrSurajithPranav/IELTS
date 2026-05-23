@@ -1,0 +1,15 @@
+[Unit]
+Description=Run IELTS review quiz generator
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/workspaces/IELTS
+ExecStart=/workspaces/IELTS/scripts/run_generate_review_quizzes.sh 8 1
+User=www-data
+
+# Environment variables should be provided via drop-in file for security
+# See README.md for instructions on creating /etc/systemd/system/run_generate_review_quizzes.service.d/override.conf
+
+[Install]
+WantedBy=multi-user.target

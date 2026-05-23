@@ -1,3 +1,31 @@
+from flask import Blueprint, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models.notification import Notification
+
+notifications_bp = Blueprint('notifications', __name__, url_prefix='/api/notifications')
+# compatibility alias used by app.py
+notifs_bp = notifications_bp
+
+
+@notifications_bp.route('/me', methods=['GET'])
+@jwt_required()
+def my_notifications():
+    uid = int(get_jwt_identity())
+    rows = Notification.query.filter_by(user_id=uid).order_by(Notification.created_at.desc()).all()
+    return jsonify([r.to_dict() for r in rows])
+
+
+@notifications_bp.route('/<int:note_id>/read', methods=['POST'])
+@jwt_required()
+def mark_read(note_id):
+    uid = int(get_jwt_identity())
+    note = Notification.query.get(note_id)
+    if not note or note.user_id != uid:
+        return jsonify({'error': 'Not found'}), 404
+    note.read = True
+    from models.db import db
+    db.session.commit()
+    return jsonify({'ok': True})
 """
 Simple in-app notifications.
 Stored in DB. Frontend can poll /api/notifications/unread.

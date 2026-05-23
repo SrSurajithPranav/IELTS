@@ -142,6 +142,12 @@ export const feedbackAPI = {
     if (audioFile) formData.append('audio', audioFile, 'feedback.webm');
     return multipartCall(`/feedback/${submissionId}`, formData);
   },
+  getReviewAudits: () => apiCall('/quizzes/review-audits'),
+};
+
+export const notificationsAPI = {
+  getMy: () => apiCall('/notifications/me'),
+  markRead: (id) => apiCall(`/notifications/${id}/read`, { method: 'POST' }),
 };
 
 // ── Plans ─────────────────────────────────────────────────

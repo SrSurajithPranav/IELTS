@@ -8,6 +8,7 @@ from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
 from models.mistake import Mistake
 from models.user import User
+from models.review_audit import ReviewAudit
 from models.notification import Notification
 from utils.scraper import scrape_public_page
 from utils.ai_helpers import paraphrase_text
@@ -860,6 +861,12 @@ def generate_review_quiz_for_user(target_id, creator_id, count=8):
         )
         db.session.add(qq)
     db.session.commit()
+    try:
+        audit = ReviewAudit(creator_id=creator_id, student_id=target_id, quiz_id=quiz.id, question_count=count)
+        db.session.add(audit)
+        db.session.commit()
+    except Exception:
+        pass
     return quiz
 
 
@@ -1404,6 +1411,17 @@ def create_review_quizzes_bulk():
             continue
 
     return jsonify({'created': len(quizzes_created), 'quizzes': quizzes_created})
+
+
+@quizzes_bp.route('/review-audits', methods=['GET'])
+@jwt_required()
+def list_review_audits():
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+    audits = ReviewAudit.query.order_by(ReviewAudit.created_at.desc()).limit(200).all()
+    return jsonify([a.to_dict() for a in audits])
 
 
 @quizzes_bp.route("/attempts/me", methods=["GET"])

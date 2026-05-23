@@ -16,6 +16,7 @@ function getGreeting() {
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const NotificationCenter = React.lazy(() => import('../../components/NotificationCenter'));
   const [todayTasks, setTodayTasks] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,10 +59,16 @@ export default function StudentDashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Welcome */}
-      <motion.div className="fade-up">
-        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 26, fontWeight: 700 }}>
-          {getGreeting()}, {user?.name?.split(' ')[0]} 👋
+      <motion.div className="fade-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontFamily: 'Fraunces, serif', fontSize: 26, fontWeight: 700 }}>{getGreeting()}, {user?.name?.split(' ')[0]} 👋</div>
         </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <React.Suspense fallback={null}>
+            <NotificationCenter />
+          </React.Suspense>
+        </div>
+      </motion.div>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
           {pct === 100
             ? "🎉 All tasks done today — incredible work!"

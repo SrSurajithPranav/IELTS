@@ -162,10 +162,16 @@ export default function AdminStudents() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [audits, setAudits] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [saving, setSaving] = useState(false);
+    const [bulkCount, setBulkCount] = useState('8');
+    const [bulkMinFreq, setBulkMinFreq] = useState('1');
+    const [bulkCategory, setBulkCategory] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -212,20 +218,9 @@ export default function AdminStudents() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }} className="fade-up">
         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700 }}>Students 👥</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button size="sm" variant="ghost" onClick={async () => {
-            if (!confirm('Run review generator? Choose options in prompts.')) return;
-            try {
-              const countInput = prompt('How many questions per quiz? (default 8)', '8');
-              const count = parseInt(countInput || '8') || 8;
-              const minFreqInput = prompt('Min mistake frequency to include student (0 = any)', '1');
-              const minFrequency = parseInt(minFreqInput || '0') || 0;
-              const category = prompt('Optional category filter (reading|listening|writing|speaking|learning) or leave blank', '');
-              const res = await quizzesAPI.createBulkReview({ count, minFrequency, category: category || undefined });
-              success(`Created ${res.created || 0} quizzes`);
-              load();
-            } catch (e) { notifyError(e.message || 'Bulk generation failed'); }
-          }}>Run Bulk Review</Button>
+          <div style={{ display: 'flex', gap: 8 }}>
+          <Button size="sm" variant="ghost" onClick={() => setBulkOpen(true)}>Run Bulk Review</Button>
+          <Button size="sm" variant="ghost" onClick={async () => { try { const res = await quizzesAPI.getReviewAudits(); setAudits(res || []); setAuditOpen(true); } catch (e) { notifyError(e.message); } }}>View Review Audits</Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>+ Add Student</Button>
         </div>
       </div>
@@ -277,6 +272,48 @@ export default function AdminStudents() {
               <input type={f === 'password' ? 'password' : f === 'email' ? 'email' : 'text'}
                 value={form[f]} onChange={(e) => setForm((c) => ({ ...c, [f]: e.target.value }))}
                 style={inp} placeholder={f === 'name' ? 'Full Name' : f === 'email' ? 'email@example.com' : 'Secure password'} />
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      {/* Bulk Review Modal */}
+      <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title="Run Bulk Review"
+        footer={<>
+          <Button variant="ghost" onClick={() => setBulkOpen(false)}>Cancel</Button>
+          <Button onClick={async () => {
+            try {
+              const res = await quizzesAPI.createBulkReview({ count: bulkCount, minFrequency: bulkMinFreq, category: bulkCategory || undefined });
+              success(`Created ${res.created || 0} quizzes`);
+              setBulkOpen(false);
+              load();
+            } catch (e) { notifyError(e.message || 'Bulk generation failed'); }
+          }}>Run</Button>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Questions per quiz</label>
+            <input style={inp} value={bulkCount} onChange={e => setBulkCount(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Min mistake frequency</label>
+            <input style={inp} value={bulkMinFreq} onChange={e => setBulkMinFreq(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Category (optional)</label>
+            <input style={inp} value={bulkCategory} onChange={e => setBulkCategory(e.target.value)} placeholder="reading, listening, writing, speaking" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Audits Modal */}
+      <Modal open={auditOpen} onClose={() => setAuditOpen(false)} title="Review Generation Audits">
+        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          {audits.length === 0 ? <div style={{ color: 'var(--muted)' }}>No audits found.</div> : audits.map(a => (
+            <div key={a.id} style={{ padding: 10, borderRadius: 8, background: 'var(--bg3)', marginBottom: 8 }}>
+              <div style={{ fontWeight: 700 }}>Quiz {a.quiz_id} for Student {a.student_id}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>Questions: {a.question_count} · By: {a.creator_id} · On: {new Date(a.created_at).toLocaleString()}</div>
             </div>
           ))}
         </div>
