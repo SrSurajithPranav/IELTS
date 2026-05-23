@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { studentsAPI, plansAPI } from '../../services/api';
+import { studentsAPI, plansAPI, quizzesAPI } from '../../services/api';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -66,6 +66,33 @@ function StudentProfileModal({ student, plans, open, onClose, onSaved }) {
     finally { setSaving(false); }
   };
 
+  const createReviewDrill = async () => {
+    setSaving(true);
+    try {
+      const drills = await quizzesAPI.reviewDrills({ count: 8, userId: student.id });
+      if (!drills || drills.length === 0) {
+        notifyError('No review drills available for this student.');
+        return;
+      }
+      const payload = {
+        title: `Review Drill for ${student.name}`,
+        category: 'learning',
+        difficulty: 'intermediate',
+        time_limit_min: 10,
+        questions: drills.map((d) => ({
+          question: d.question || d.text || '',
+          options: d.options || d.opts || [],
+          correct: typeof d.correct === 'number' ? d.correct : (d.correct_index || 0),
+          explanation: d.explanation || '',
+        })),
+      };
+      await quizzesAPI.create(payload);
+      success('Review drill created as a quiz.');
+      onSaved && onSaved();
+    } catch (e) { notifyError(e.message || 'Failed to create review drill'); }
+    finally { setSaving(false); }
+  };
+
   const inp = { width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: 'inherit' };
 
   const tabs = ['info', 'plan', 'password'];
@@ -100,6 +127,9 @@ function StudentProfileModal({ student, plans, open, onClose, onSaved }) {
           <div><label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase' }}>Full Name</label><input style={inp} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} /></div>
           <div><label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase' }}>Zoom / Jitsi Link</label><input style={inp} value={editForm.zoom_link} onChange={e => setEditForm(f => ({ ...f, zoom_link: e.target.value }))} placeholder="https://meet.jit.si/room" /></div>
           <div><label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase' }}>Weak Areas (comma-separated)</label><input style={inp} value={editForm.weak_areas} onChange={e => setEditForm(f => ({ ...f, weak_areas: e.target.value }))} placeholder="grammar, speaking, writing" /></div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" size="sm" onClick={createReviewDrill} loading={saving}>Create Review Drill</Button>
+          </div>
         </div>
       )}
 

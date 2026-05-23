@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.db import db
 from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
+from models.mistake import Mistake
 from models.user import User
 from utils.scraper import scrape_public_page
 from utils.ai_helpers import paraphrase_text
@@ -856,7 +857,17 @@ def list_quizzes():
 @quizzes_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_quiz():
-    uid = int(get_jwt_identity())
+    current_uid = int(get_jwt_identity())
+    user = User.query.get(current_uid)
+    # allow admin to request drills for a specific student via ?user_id=
+    req_uid = request.args.get('user_id')
+    if req_uid and user and user.role == 'admin':
+        try:
+            uid = int(req_uid)
+        except (TypeError, ValueError):
+            uid = current_uid
+    else:
+        uid = current_uid
     user = User.query.get(uid)
     if user.role != "admin":
         return jsonify({"error": "Admin only"}), 403
@@ -1141,6 +1152,7 @@ def submit_attempt(quiz_id):
     data = request.get_json()
     answers = data.get("answers", [])  # list of chosen option indices
     questions = QuizQuestion.query.filter_by(quiz_id=quiz_id).all()
+    quiz = Quiz.query.get(quiz_id)
 
     score = sum(
         1 for i, q in enumerate(questions)
@@ -1155,6 +1167,23 @@ def submit_attempt(quiz_id):
         score=pct,
     )
     db.session.add(attempt)
+    # Record mistakes for incorrect answers to build a review bank
+    try:
+        for i, q in enumerate(questions):
+            chosen = answers[i] if i < len(answers) else -1
+            if chosen != q.correct_index:
+                # use quiz.category as a coarse category
+                cat = (quiz.category or 'learning') if quiz else 'learning'
+                # upsert mistake by exact question text + category
+                existing = Mistake.query.filter_by(user_id=uid, error_text=(q.question or '').strip(), category=cat).first()
+                if existing:
+                    existing.frequency = (existing.frequency or 0) + 1
+                else:
+                    m = Mistake(user_id=uid, error_text=(q.question or '').strip(), category=cat, frequency=1)
+                    db.session.add(m)
+    except Exception:
+        # avoid failing the attempt save if mistake logging has an issue
+        pass
     db.session.commit()
     return jsonify({
         "score": pct,
@@ -1171,6 +1200,42 @@ def submit_attempt(quiz_id):
             for i, q in enumerate(questions)
         ]
     })
+
+
+@quizzes_bp.route('/mistakes/review', methods=['GET'])
+@jwt_required()
+def review_drills():
+    """Return targeted review drills based on student's frequent mistakes."""
+    uid = int(get_jwt_identity())
+    try:
+        count = int(request.args.get('count', 8))
+    except (TypeError, ValueError):
+        count = 8
+
+    mistakes = Mistake.query.filter_by(user_id=uid).order_by(Mistake.frequency.desc()).all()
+    if not mistakes:
+        # fallback: return some general learning questions
+        return jsonify(_fallback_questions('learning', count))
+
+    drills = []
+    used = 0
+    for m in mistakes:
+        if used >= count:
+            break
+        cat = m.category or 'learning'
+        needed = min(count - used, 2)
+        picks = _fallback_questions(cat, needed)
+        for p in picks:
+            if used >= count:
+                break
+            drills.append(p)
+            used += 1
+
+    # if still short, top up from learning bank
+    if used < count:
+        drills.extend(_fallback_questions('learning', count - used))
+
+    return jsonify(drills[:count])
 
 
 @quizzes_bp.route("/attempts/me", methods=["GET"])

@@ -231,6 +231,13 @@ export const quizzesAPI = {
   create: (data) => apiCall('/quizzes/', { method: 'POST', body: JSON.stringify(data) }),
   generateRandom: (data) =>
     apiCall('/quizzes/generate-random', { method: 'POST', body: JSON.stringify(data) }),
+  reviewDrills: (opts = {}) => {
+    const q = new URLSearchParams();
+    if (opts.count) q.set('count', String(opts.count));
+    if (opts.userId) q.set('user_id', String(opts.userId));
+    const suffix = q.toString() ? `?${q.toString()}` : '';
+    return apiCall(`/quizzes/mistakes/review${suffix}`);
+  },
   addQuestion: (quizId, data) =>
     apiCall(`/quizzes/${quizId}/questions`, { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => apiCall(`/quizzes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
