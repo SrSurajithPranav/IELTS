@@ -8,12 +8,15 @@ from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
 from models.mistake import Mistake
 from models.user import User
+from models.notification import Notification
 from utils.scraper import scrape_public_page
 from utils.ai_helpers import paraphrase_text
+from utils.emailer import send_email
 from functools import lru_cache
 from pathlib import Path
 import json
 import random
+from flask import current_app
 
 quizzes_bp = Blueprint("quizzes", __name__, url_prefix="/api/quizzes")
 resources_bp = Blueprint("resources", __name__, url_prefix="/api/resources")
@@ -1324,6 +1327,24 @@ def create_review_quiz_for_user():
         )
         db.session.add(qq)
     db.session.commit()
+    # create in-app notification
+    try:
+        student = User.query.get(target_id)
+        if student:
+            link = f"{current_app.config.get('FRONTEND_BASE_URL', 'http://localhost:5173')}/quizzes/{quiz.id}"
+            note = Notification(user_id=target_id, title='New review quiz available', body=f'A review quiz has been created for you. Take it here: {link}', type='reminder')
+            db.session.add(note)
+            db.session.commit()
+            # try send email
+            try:
+                subject = 'New review quiz available'
+                body = f"Hi {student.name or student.email},\n\nA personalized review quiz has been created for you. Open it here: {link}\n\nGood luck!\n"
+                send_email(subject, body, student.email, current_app.config)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     return jsonify(quiz.to_dict(include_questions=True)), 201
 
 
@@ -1342,19 +1363,43 @@ def create_review_quizzes_bulk():
     except Exception:
         count = 8
 
+    min_freq = int(data.get('min_frequency', 0) or 0)
+    category = data.get('category')
     user_ids = data.get('user_ids')
     quizzes_created = []
+
     if isinstance(user_ids, list) and user_ids:
         targets = [int(x) for x in user_ids]
     else:
-        # find users with mistakes
-        rows = db.session.query(Mistake.user_id).distinct().all()
+        # find users with mistakes filtered by frequency and optional category
+        q = Mistake.query
+        if category:
+            q = q.filter_by(category=category)
+        if min_freq > 0:
+            q = q.filter(Mistake.frequency >= min_freq)
+        rows = q.with_entities(Mistake.user_id).distinct().all()
         targets = [r[0] for r in rows]
 
     for tid in targets:
         try:
-            q = generate_review_quiz_for_user(tid, current_uid, count)
-            quizzes_created.append(q.to_dict(include_questions=True))
+            qobj = generate_review_quiz_for_user(tid, current_uid, count)
+            quizzes_created.append(qobj.to_dict(include_questions=True))
+            # notify student
+            try:
+                student = User.query.get(tid)
+                if student:
+                    link = f"{current_app.config.get('FRONTEND_BASE_URL', 'http://localhost:5173')}/quizzes/{qobj.id}"
+                    note = Notification(user_id=tid, title='New review quiz available', body=f'A review quiz has been created for you. Take it here: {link}', type='reminder')
+                    db.session.add(note)
+                    db.session.commit()
+                    try:
+                        subject = 'New review quiz available'
+                        body = f"Hi {student.name or student.email},\n\nA personalized review quiz has been created for you. Open it here: {link}\n\nGood luck!\n"
+                        send_email(subject, body, student.email, current_app.config)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
         except Exception:
             continue
 

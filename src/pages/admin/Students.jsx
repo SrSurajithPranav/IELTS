@@ -214,9 +214,14 @@ export default function AdminStudents() {
         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700 }}>Students 👥</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button size="sm" variant="ghost" onClick={async () => {
-            if (!confirm('Run review generator for all students with logged mistakes?')) return;
+            if (!confirm('Run review generator? Choose options in prompts.')) return;
             try {
-              const res = await quizzesAPI.createBulkReview({ count: 8 });
+              const countInput = prompt('How many questions per quiz? (default 8)', '8');
+              const count = parseInt(countInput || '8') || 8;
+              const minFreqInput = prompt('Min mistake frequency to include student (0 = any)', '1');
+              const minFrequency = parseInt(minFreqInput || '0') || 0;
+              const category = prompt('Optional category filter (reading|listening|writing|speaking|learning) or leave blank', '');
+              const res = await quizzesAPI.createBulkReview({ count, minFrequency, category: category || undefined });
               success(`Created ${res.created || 0} quizzes`);
               load();
             } catch (e) { notifyError(e.message || 'Bulk generation failed'); }
