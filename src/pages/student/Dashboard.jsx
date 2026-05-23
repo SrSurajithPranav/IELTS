@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
-import { tasksAPI, submissionsAPI } from '../../services/api';
+import { tasksAPI, submissionsAPI, quizzesAPI } from '../../services/api';
 import { Card, StatCard } from '../../components/ui/Card';
 import { ProgressRing, ProgressBar } from '../../components/ui/Progress';
 import { Badge, StatusBadge } from '../../components/ui/Badge';
@@ -49,6 +49,12 @@ export default function StudentDashboard() {
     { label: 'Tasks Reviewed',value: reviewed,            icon: '✅', color: 'var(--success)' },
   ];
 
+  // Review drills modal state
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewDrills, setReviewDrills] = useState([]);
+  const [reviewAnswers, setReviewAnswers] = useState({});
+  const [reviewResults, setReviewResults] = useState(null);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Welcome */}
@@ -62,6 +68,28 @@ export default function StudentDashboard() {
             : `You've completed ${completed} of ${total} tasks today. Keep going!`}
         </p>
       </motion.div>
+
+      {/* Quick Review Mistakes */}
+      <div className="fade-up-2">
+        <Card style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontWeight: 700 }}>Review Your Mistakes</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6 }}>Practice high-frequency mistakes targeted to your weaknesses.</div>
+          </div>
+          <div>
+            <button onClick={async () => {
+              try {
+                setLoading(true);
+                const drills = await quizzesAPI.reviewDrills({ count: 8 });
+                setLoading(false);
+                if (!drills || drills.length === 0) return alert('No review drills available yet.');
+                setReviewDrills(drills);
+                setShowReviewModal(true);
+              } catch (e) { setLoading(false); alert(e.message || 'Failed to load drills'); }
+            }} style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontWeight: 700 }}>Review Mistakes</button>
+          </div>
+        </Card>
+      </div>
 
       {/* Announcement */}
       <AnnouncementBanner />
@@ -180,6 +208,74 @@ export default function StudentDashboard() {
           ))
         )}
       </Card>
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div style={{ position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ width: 760, maxHeight: '80vh', overflowY: 'auto', background: 'var(--card)', borderRadius: 12, padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontWeight: 700 }}>Practice: Review Mistakes</div>
+              <div>
+                <button onClick={() => { setShowReviewModal(false); setReviewDrills([]); setReviewAnswers({}); setReviewResults(null); }} style={{ background: 'transparent', border: 'none', fontSize: 18 }}>✕</button>
+              </div>
+            </div>
+            {reviewResults ? (
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Results: {reviewResults.correct} / {reviewResults.total}</div>
+                <div style={{ marginBottom: 12, color: 'var(--muted)' }}>{reviewResults.score}%</div>
+                <div>
+                  {reviewResults.details.map((r, i) => (
+                    <div key={i} style={{ padding: 10, background: 'var(--bg3)', borderRadius: 8, marginBottom: 8 }}>
+                      <div style={{ fontWeight: 600 }}>{r.question}</div>
+                      <div style={{ marginTop: 6, color: r.correct ? 'var(--success)' : 'var(--danger)' }}>{r.correct ? 'Correct' : `Wrong — Correct: ${r.options[r.correct_answer]}`}</div>
+                      {r.explanation && <div style={{ marginTop: 6, color: 'var(--muted)', fontSize: 13 }}>{r.explanation}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                {reviewDrills.map((q, idx) => (
+                  <div key={idx} style={{ padding: 12, borderRadius: 8, background: 'var(--bg3)', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700 }}>{idx + 1}. {q.question}</div>
+                    <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {(q.options || []).map((opt, oi) => (
+                        <label key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: reviewAnswers[idx] === oi ? 'rgba(20,108,114,.08)' : 'transparent', cursor: 'pointer' }}>
+                          <input type="radio" name={`q_${idx}`} checked={reviewAnswers[idx] === oi} onChange={() => setReviewAnswers(a => ({ ...a, [idx]: oi }))} />
+                          <span style={{ fontSize: 14 }}>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button onClick={() => {
+                    const total = reviewDrills.length;
+                    let correct = 0;
+                    const details = reviewDrills.map((q, i) => {
+                      const chosen = reviewAnswers[i] != null ? reviewAnswers[i] : -1;
+                      const isCorrect = chosen === (q.correct != null ? q.correct : (q.correct_index || 0));
+                      if (isCorrect) correct += 1;
+                      return {
+                        question: q.question,
+                        your_answer: chosen,
+                        correct_answer: q.correct != null ? q.correct : (q.correct_index || 0),
+                        options: q.options || [],
+                        explanation: q.explanation || '',
+                        correct: isCorrect,
+                      };
+                    });
+                    const score = Math.round((correct / Math.max(1, total)) * 100);
+                    setReviewResults({ total, correct, score, details });
+                  }} style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontWeight: 700 }}>Submit</button>
+                  <button onClick={() => { setReviewAnswers({}); setReviewResults(null); }} style={{ padding: '10px 14px', borderRadius: 8 }}>Reset</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

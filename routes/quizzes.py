@@ -1238,6 +1238,60 @@ def review_drills():
     return jsonify(drills[:count])
 
 
+@quizzes_bp.route('/mistakes/create-for-user', methods=['POST'])
+@jwt_required()
+def create_review_quiz_for_user():
+    """Admin-only: create a Quiz from a student's mistake drills and return the created quiz."""
+    current_uid = int(get_jwt_identity())
+    user = User.query.get(current_uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        target_id = int(data.get('user_id'))
+    except Exception:
+        return jsonify({'error': 'user_id required'}), 400
+    try:
+        count = int(data.get('count', 8))
+    except Exception:
+        count = 8
+
+    drills = []
+    # reuse review_drills logic by calling the function internals
+    mistakes = Mistake.query.filter_by(user_id=target_id).order_by(Mistake.frequency.desc()).all()
+    if mistakes:
+        used = 0
+        for m in mistakes:
+            if used >= count:
+                break
+            cat = m.category or 'learning'
+            picks = _fallback_questions(cat, min(2, count - used))
+            for p in picks:
+                if used >= count:
+                    break
+                drills.append(p)
+                used += 1
+    if len(drills) < count:
+        drills.extend(_fallback_questions('learning', count - len(drills)))
+
+    # create quiz and questions
+    quiz = Quiz(title=f"Review for student {target_id}", category='learning', difficulty='intermediate', time_limit_min=12, created_by=current_uid)
+    db.session.add(quiz)
+    db.session.flush()
+    for d in drills[:count]:
+        qq = QuizQuestion(
+            quiz_id=quiz.id,
+            question=d.get('question') or d.get('text') or '',
+            options='|'.join(d.get('options', d.get('opts', []))) if d.get('options') or d.get('opts') else '',
+            correct_index=d.get('correct') if isinstance(d.get('correct'), int) else int(d.get('correct_index') or 0),
+            explanation=d.get('explanation', ''),
+        )
+        db.session.add(qq)
+    db.session.commit()
+    return jsonify(quiz.to_dict(include_questions=True)), 201
+
+
 @quizzes_bp.route("/attempts/me", methods=["GET"])
 @jwt_required()
 def my_attempts():
