@@ -134,6 +134,17 @@ export const submissionsAPI = {
   getAll: () => apiCall('/submissions'),
 };
 
+const appendSearchParams = (basePath, params = {}) => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      search.set(key, String(value));
+    }
+  });
+  const suffix = search.toString() ? `?${search.toString()}` : '';
+  return `${basePath}${suffix}`;
+};
+
 // ── Feedback ──────────────────────────────────────────────
 export const feedbackAPI = {
   create: (submissionId, text, audioFile) => {
@@ -142,8 +153,8 @@ export const feedbackAPI = {
     if (audioFile) formData.append('audio', audioFile, 'feedback.webm');
     return multipartCall(`/feedback/${submissionId}`, formData);
   },
-  getReviewAudits: () => apiCall('/quizzes/review-audits'),
-  exportReviewAuditsCsv: () => apiCall('/quizzes/review-audits.csv'),
+  getReviewAudits: (filters = {}) => apiCall(appendSearchParams('/quizzes/review-audits', filters)),
+  exportReviewAuditsCsv: (filters = {}) => apiCall(appendSearchParams('/quizzes/review-audits.csv', filters)),
 };
 
 export const adminAPI = {
@@ -302,13 +313,6 @@ export const aiAPI = {
 export const leaderboardAPI = {
   get: (filter) =>
     apiCall(filter ? `/leaderboard/?filter=${filter}` : '/leaderboard/'),
-};
-
-// ── Notifications ─────────────────────────────────────────
-export const notificationsAPI = {
-  getAll: () => apiCall('/notifications/'),
-  markRead: (id) => apiCall(`/notifications/${id}/read`, { method: 'POST' }),
-  markAllRead: () => apiCall('/notifications/read-all', { method: 'POST' }),
 };
 
 // ── Announcements ─────────────────────────────────────────

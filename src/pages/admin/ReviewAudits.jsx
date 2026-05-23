@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { quizzesAPI } from '../../services/api';
+import { feedbackAPI } from '../../services/api';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
@@ -8,11 +8,23 @@ export default function ReviewAudits() {
   const [loading, setLoading] = useState(true);
   const [creator, setCreator] = useState('');
   const [student, setStudent] = useState('');
+  const [category, setCategory] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [questionCount, setQuestionCount] = useState('');
 
-  const load = async () => {
+  const buildFilters = () => ({
+    creator_id: creator,
+    student_id: student,
+    category,
+    from: fromDate,
+    to: toDate,
+  });
+
+  const load = async (overrideFilters = buildFilters()) => {
     setLoading(true);
     try {
-      const res = await quizzesAPI.getReviewAudits();
+      const res = await feedbackAPI.getReviewAudits(overrideFilters);
       setAudits(Array.isArray(res) ? res : []);
     } catch (e) {
       setAudits([]);
@@ -23,7 +35,7 @@ export default function ReviewAudits() {
 
   const exportCsv = async () => {
     try {
-      const res = await quizzesAPI.exportReviewAuditsCsv();
+      const res = await feedbackAPI.exportReviewAuditsCsv(buildFilters());
       if (typeof res === 'string') {
         const blob = new Blob([res], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -42,10 +54,21 @@ export default function ReviewAudits() {
   };
 
   const filtered = audits.filter(a => {
-    if (creator && String(a.creator_id) !== String(creator)) return false;
-    if (student && String(a.student_id) !== String(student)) return false;
+    if (questionCount && Number(a.question_count) < Number(questionCount)) return false;
     return true;
   });
+
+  const applyFilters = () => load(buildFilters());
+
+  const clearFilters = () => {
+    setCreator('');
+    setStudent('');
+    setCategory('');
+    setFromDate('');
+    setToDate('');
+    setQuestionCount('');
+    load({});
+  };
 
   return (
     <div>
@@ -58,10 +81,17 @@ export default function ReviewAudits() {
       </div>
 
       <Card style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
           <input placeholder="Creator user id" value={creator} onChange={(e) => setCreator(e.target.value)} />
           <input placeholder="Student id" value={student} onChange={(e) => setStudent(e.target.value)} />
-          <Button onClick={() => {}}>Apply</Button>
+          <input placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} />
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <input placeholder="Min questions" type="number" value={questionCount} onChange={(e) => setQuestionCount(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <Button onClick={applyFilters}>Apply Filters</Button>
+          <Button variant="ghost" onClick={clearFilters}>Clear</Button>
         </div>
       </Card>
 
