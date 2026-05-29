@@ -657,3 +657,229 @@ def progress_risk_report():
         'actions': actions,
         'source': 'rule-based-risk-model',
     })
+
+
+# ============ WRITING FEATURES ============
+
+@ai_bp.route('/writing/structure', methods=['POST'])
+@jwt_required()
+def check_essay_structure():
+    """Check if essay contains Introduction, Body 1, Body 2, and Conclusion."""
+    uid = int(get_jwt_identity())
+    if not User.query.get(uid):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    
+    if not text:
+        return jsonify({'error': 'text is required'}), 400
+    
+    # Simple paragraph detection
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+    
+    structure = {
+        'has_introduction': False,
+        'has_body_1': False,
+        'has_body_2': False,
+        'has_conclusion': False,
+        'missing': []
+    }
+    
+    # Keyword-based detection
+    intro_keywords = ['introduction', 'this essay', 'will discuss', 'agree', 'disagree', 'opinion']
+    body_keywords = ['firstly', 'secondly', 'moreover', 'furthermore', 'in addition', 'on the one hand']
+    conclusion_keywords = ['conclusion', 'to conclude', 'in summary', 'overall', 'to sum up']
+    
+    for para in paragraphs:
+        para_lower = para.lower()
+        if not structure['has_introduction'] and any(kw in para_lower for kw in intro_keywords):
+            structure['has_introduction'] = True
+        elif not structure['has_conclusion'] and any(kw in para_lower for kw in conclusion_keywords):
+            structure['has_conclusion'] = True
+        elif any(kw in para_lower for kw in body_keywords):
+            if not structure['has_body_1']:
+                structure['has_body_1'] = True
+            elif not structure['has_body_2']:
+                structure['has_body_2'] = True
+    
+    if not structure['has_introduction']:
+        structure['missing'].append('Introduction')
+    if not structure['has_body_1']:
+        structure['missing'].append('Body paragraph 1')
+    if not structure['has_body_2']:
+        structure['missing'].append('Body paragraph 2')
+    if not structure['has_conclusion']:
+        structure['missing'].append('Conclusion')
+    
+    structure['complete'] = len(structure['missing']) == 0
+    return jsonify(structure)
+
+
+@ai_bp.route('/writing/cohesive', methods=['POST'])
+@jwt_required()
+def analyze_cohesive_devices():
+    """Analyze cohesive device density compared to band 7+ threshold."""
+    uid = int(get_jwt_identity())
+    if not User.query.get(uid):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    
+    if not text:
+        return jsonify({'error': 'text is required'}), 400
+    
+    cohesive_devices = [
+        'however', 'moreover', 'furthermore', 'consequently', 'therefore',
+        'in addition', 'additionally', 'nevertheless', 'nonetheless',
+        'on the other hand', 'in contrast', 'conversely', 'as a result',
+        'hence', 'thus', 'accordingly', 'for instance', 'for example',
+        'in particular', 'specifically', 'firstly', 'secondly', 'finally'
+    ]
+    
+    word_count = len(text.split())
+    count = sum(text.lower().count(device) for device in cohesive_devices)
+    density = (count / word_count) * 100 if word_count > 0 else 0
+    target_density = 4.5  # ~11 per 250 words
+    band = '7+' if density >= target_density else '6' if density >= 3 else '5-'
+    
+    # Highlight devices in text
+    highlighted = text
+    for device in cohesive_devices:
+        highlighted = highlighted.replace(
+            device, f'<mark class="cohesive">{device}</mark>'
+        )
+        highlighted = highlighted.replace(
+            device.capitalize(), f'<mark class="cohesive">{device.capitalize()}</mark>'
+        )
+    
+    return jsonify({
+        'count': count,
+        'word_count': word_count,
+        'density': round(density, 1),
+        'target_density': target_density,
+        'band': band,
+        'highlighted_text': highlighted
+    })
+
+
+@ai_bp.route('/writing/cliches', methods=['POST'])
+@jwt_required()
+def detect_cliches():
+    """Detect banned IELTS clichés and suggest alternatives."""
+    uid = int(get_jwt_identity())
+    if not User.query.get(uid):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    
+    if not text:
+        return jsonify({'error': 'text is required'}), 400
+    
+    cliches = {
+        'nowadays': 'Currently, In recent years, These days',
+        'every coin has two sides': 'This issue has both advantages and disadvantages',
+        'i strongly believe': 'It is evident that, The evidence suggests',
+        'in a nutshell': 'To summarise, In conclusion',
+        'controversial topic': 'widely debated issue, subject of discussion',
+        'double-edged sword': 'has both benefits and drawbacks',
+        'last but not least': 'finally, additionally',
+        'it goes without saying': 'clearly, evidently',
+        'first and foremost': 'primarily, most importantly'
+    }
+    
+    found = []
+    text_lower = text.lower()
+    for cliche, alternative in cliches.items():
+        if cliche in text_lower:
+            found.append({
+                'cliche': cliche,
+                'alternative': alternative,
+                'count': text_lower.count(cliche)
+            })
+    
+    return jsonify({'cliches': found})
+
+
+# ============ SPEAKING FEATURES ============
+
+@ai_bp.route('/speaking/part3-depth', methods=['POST'])
+@jwt_required()
+def check_part3_depth():
+    """Check if Part 3 answer has reason, example, and contrasting viewpoint."""
+    uid = int(get_jwt_identity())
+    if not User.query.get(uid):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json(silent=True) or {}
+    answer = (data.get('answer') or '').strip()
+    
+    if not answer:
+        return jsonify({'error': 'answer is required'}), 400
+    
+    depth_indicators = {
+        'reason': ['because', 'since', 'due to', 'the reason is', 'this is because'],
+        'example': ['for example', 'for instance', 'such as', 'like', 'specifically'],
+        'contrast': ['however', 'on the other hand', 'although', 'while', 'whereas', 'some people think']
+    }
+    
+    answer_lower = answer.lower()
+    depth = {
+        'has_reason': any(kw in answer_lower for kw in depth_indicators['reason']),
+        'has_example': any(kw in answer_lower for kw in depth_indicators['example']),
+        'has_contrast': any(kw in answer_lower for kw in depth_indicators['contrast'])
+    }
+    
+    depth['score'] = sum([depth['has_reason'], depth['has_example'], depth['has_contrast']])
+    depth['feedback'] = []
+    
+    if not depth['has_reason']:
+        depth['feedback'].append("Add a reason: 'because...' or 'the reason is...'")
+    if not depth['has_example']:
+        depth['feedback'].append("Add an example: 'for example, in my country...' or 'such as...'")
+    if not depth['has_contrast']:
+        depth['feedback'].append("Add a contrasting view: 'however, some people believe...' or 'on the other hand...'")
+    
+    depth['band'] = '7+' if depth['score'] >= 2 else '6' if depth['score'] >= 1 else '5-'
+    
+    return jsonify(depth)
+
+
+@ai_bp.route('/speaking/tense-consistency', methods=['POST'])
+@jwt_required()
+def check_tense_consistency():
+    """Check for tense consistency in spoken narrative."""
+    uid = int(get_jwt_identity())
+    if not User.query.get(uid):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json(silent=True) or {}
+    transcript = (data.get('transcript') or '').strip()
+    
+    if not transcript:
+        return jsonify({'error': 'transcript is required'}), 400
+    
+    past_indicators = ['went', 'was', 'were', 'had', 'did', 'visited', 'saw', 'ate', 'drove', 'stayed']
+    present_indicators = ['go', 'is', 'am', 'are', 'have', 'do', 'visit', 'see', 'eat', 'drive', 'stay']
+    
+    sentences = transcript.split('.')
+    issues = []
+    
+    for i, sentence in enumerate(sentences):
+        sentence_lower = sentence.lower()
+        has_past = any(past in sentence_lower for past in past_indicators)
+        has_present = any(present in sentence_lower for present in present_indicators)
+        
+        if has_past and has_present and i > 0:
+            issues.append({
+                'sentence': sentence.strip(),
+                'issue': 'Mixed past and present tense in same sentence/context'
+            })
+    
+    return jsonify({
+        'has_issues': len(issues) > 0,
+        'issues': issues,
+        'suggestion': 'Choose one tense for past events (past simple) and stick to it throughout the narrative.'
+    })
