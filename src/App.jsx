@@ -1423,11 +1423,22 @@ const AICoachPage = ({ user }) => {
 // PROGRESS PAGE
 // ─────────────────────────────────────────────
 const ProgressPage = ({ user }) => {
+  // Calculate progress dynamically based on user creation date
+  const PROGRAM_DURATION_DAYS = 60;
+  const userCreatedDate = new Date(user.created_at || new Date());
+  const today = new Date();
+  const daysSinceStart = Math.max(0, Math.floor((today - userCreatedDate) / (1000 * 60 * 60 * 24)) + 1);
+  const currentDay = Math.min(daysSinceStart, PROGRAM_DURATION_DAYS);
+  const progressPct = Math.round((currentDay / PROGRAM_DURATION_DAYS) * 100);
+  const daysToGo = PROGRAM_DURATION_DAYS - currentDay;
+  const progressPercentToGo = 100 - progressPct;
+  
+  // Skill data based on user data (default if not available)
   const skillData = [
-    { label: "Listening", score: 7.0, color: "var(--success)" },
-    { label: "Reading",   score: 6.5, color: "var(--warn)" },
-    { label: "Writing",   score: 6.0, color: "#a78bfa" },
-    { label: "Speaking",  score: 6.5, color: "var(--accent)" },
+    { label: "Listening", score: user.listening_band || 6.0, color: "var(--success)" },
+    { label: "Reading",   score: user.reading_band || 6.0, color: "var(--warn)" },
+    { label: "Writing",   score: user.writing_band || 6.0, color: "#a78bfa" },
+    { label: "Speaking",  score: user.speaking_band || 6.0, color: "var(--accent)" },
   ];
   const overall = (skillData.reduce((a, b) => a + b.score, 0) / skillData.length).toFixed(1);
   const weakAreas = skillData.filter(s => s.score < 6.5).map(s => s.label);
@@ -1448,10 +1459,10 @@ const ProgressPage = ({ user }) => {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>Overall Progress</div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>Day 14 of 60 · 77% to go</div>
-            <ProgressBar pct={23} height={8} />
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>Day {currentDay} of {PROGRAM_DURATION_DAYS} · {progressPercentToGo}% to go</div>
+            <ProgressBar pct={progressPct} height={8} />
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
-              <span>Day 1</span><span>Day 60</span>
+              <span>Day 1</span><span>Day {PROGRAM_DURATION_DAYS}</span>
             </div>
           </div>
         </div>
