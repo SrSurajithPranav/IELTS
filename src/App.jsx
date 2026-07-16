@@ -10,6 +10,7 @@ import {
   API_BASE_URL,
   apiCall,
   authAPI,
+  aiAPI,
   tasksAPI,
   submissionsAPI,
   feedbackAPI,
@@ -2968,7 +2969,7 @@ export default function App() {
     const token = localStorage.getItem("jwt_token");
     if (token && !user) {
       // Verify token is still valid by checking user data
-      apiCall("/api/auth/me", "GET", null, token)
+      authAPI.getProfile()
         .then(res => {
           if (res && res.user) {
             const usr = res.user;
