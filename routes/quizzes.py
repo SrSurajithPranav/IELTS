@@ -19,6 +19,7 @@ from pathlib import Path
 from datetime import datetime
 import json
 import random
+import re
 from flask import current_app
 
 quizzes_bp = Blueprint("quizzes", __name__, url_prefix="/api/quizzes")
@@ -53,6 +54,45 @@ CATEGORY_SYNONYMS = {
 }
 
 BANK_PATH = Path(__file__).resolve().parents[1] / "src" / "ielts_massive_training_bank.json"
+
+# Regex that matches strings containing AI-generated metadata leaked into the
+# training bank — questions with these patterns are garbage and must be skipped.
+_GARBAGE_RE = re.compile(
+    r'analysis phase \d+'
+    r'|test case \d+'
+    r'|test variant'
+    r'|dataset variable'
+    r'|block \d+'
+    r'|item code \d+'
+    r'|audio testing track'
+    r'|track session \d+'
+    r'|status verified'
+    r'|verification status'
+    r'|context does not support'
+    r'|no such detail was provided'
+    r'|this is a distractor'
+    r'|introduced before the answer'
+    r'|VERIFIED-\d+'
+    r'|simulate|simulating|simulation'
+    r'|placeholder'
+    r'|context set \d+'
+    r'|cue card presentation topic \d+'
+    r'|prompt context.*config.*\d+'
+    r'|entry number \d+ simulating',
+    re.IGNORECASE,
+)
+
+
+def _is_clean_bank_item(item: dict) -> bool:
+    """Return True only if the item has a real question and no garbage markers."""
+    q = (item.get("question") or item.get("q") or "").strip()
+    if not q or len(q) < 15:
+        return False
+    opts = list(item.get("options") or item.get("opts") or [])
+    if len(opts) < 2:
+        return False
+    full_text = json.dumps(item)
+    return not _GARBAGE_RE.search(full_text)
 
 
 @lru_cache(maxsize=1)
@@ -731,15 +771,20 @@ def _normalized_category(value):
 
 
 def _bank_questions(category, question_count, difficulty=None):
-    bank = _load_training_bank().get(category, [])
-    if not isinstance(bank, list) or not bank:
+    raw_bank = _load_training_bank().get(category, [])
+    if not isinstance(raw_bank, list) or not raw_bank:
+        return []
+
+    # Strip any AI-generated garbage from the training bank before using it
+    clean_bank = [item for item in raw_bank if _is_clean_bank_item(item)]
+    if not clean_bank:
         return []
 
     filtered = [
-        item for item in bank
+        item for item in clean_bank
         if not difficulty or (item.get("difficulty") or item.get("diff")) == difficulty
     ]
-    pool = filtered or bank
+    pool = filtered or clean_bank
     sample_size = min(question_count, len(pool))
     selected = random.sample(pool, sample_size) if sample_size else []
 
@@ -891,6 +936,17 @@ def _preferred_categories_from_weak_areas(weak_areas):
 
 # ── QUIZZES ───────────────────────────────────────────────────────────
 
+def _quiz_has_garbage(quiz) -> bool:
+    """Return True if any question in the quiz contains AI-generation metadata garbage."""
+    for qq in quiz.questions:
+        if _GARBAGE_RE.search(qq.question or ""):
+            return True
+        for opt in (qq.options or "").split("|"):
+            if _GARBAGE_RE.search(opt):
+                return True
+    return False
+
+
 @quizzes_bp.route("/", methods=["GET"])
 @jwt_required()
 def list_quizzes():
@@ -898,7 +954,11 @@ def list_quizzes():
     q = Quiz.query
     if category:
         q = q.filter_by(category=category)
-    return jsonify([quiz.to_dict() for quiz in q.order_by(Quiz.id.desc()).all()])
+    return jsonify([
+        quiz.to_dict()
+        for quiz in q.order_by(Quiz.id.desc()).all()
+        if not _quiz_has_garbage(quiz)
+    ])
 
 
 @quizzes_bp.route("/", methods=["POST"])
@@ -1157,6 +1217,8 @@ def recommended_quizzes():
 @jwt_required()
 def get_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
+    if _quiz_has_garbage(quiz):
+        return jsonify({"error": "This quiz contains invalid questions and has been disabled."}), 410
     return jsonify(quiz.to_dict(include_questions=True))
 
 
@@ -1505,6 +1567,26 @@ def export_review_audits_csv():
         writer.writerow([r.id, r.creator_id, r.student_id, r.quiz_id, r.question_count, r.min_frequency, r.category or '', r.created_at.isoformat()])
     output = si.getvalue()
     return current_app.response_class(output, mimetype='text/csv')
+
+
+@quizzes_bp.route('/admin/purge-garbage', methods=['POST'])
+@jwt_required()
+def purge_garbage_quizzes():
+    """Admin-only: delete all quizzes that contain AI-generated garbage questions."""
+    uid = int(get_jwt_identity())
+    user = User.query.get(uid)
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin only'}), 403
+    all_quizzes = Quiz.query.all()
+    deleted = 0
+    for quiz in all_quizzes:
+        if _quiz_has_garbage(quiz):
+            QuizQuestion.query.filter_by(quiz_id=quiz.id).delete()
+            QuizAttempt.query.filter_by(quiz_id=quiz.id).delete()
+            db.session.delete(quiz)
+            deleted += 1
+    db.session.commit()
+    return jsonify({'message': f'Purged {deleted} garbage quiz(zes) from the database.'})
 
 
 @quizzes_bp.route('/admin/job-tokens', methods=['POST'])
