@@ -2963,12 +2963,35 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("dashboard");
 
+  // Check for existing token on app load
+  useEffect(() => {
+    const token = localStorage.getItem("jwt_token");
+    if (token && !user) {
+      // Verify token is still valid by checking user data
+      apiCall("/api/auth/me", "GET", null, token)
+        .then(res => {
+          if (res && res.user) {
+            const usr = res.user;
+            setUser({ id: usr.id, name: usr.name, email: usr.email, role: usr.role, streak: usr.streak || 0, score: usr.score || 0 });
+            setPage(usr.role === "admin" ? "admin-home" : "dashboard");
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("jwt_token");
+        });
+    }
+  }, [user]);
+
   const handleLogin = (u) => {
     setUser(u);
     setPage(u.role === "admin" ? "admin-home" : "dashboard");
   };
 
-  const handleLogout = () => { setUser(null); setPage("dashboard"); };
+  const handleLogout = () => { 
+    localStorage.removeItem("jwt_token");
+    setUser(null); 
+    setPage("dashboard"); 
+  };
 
   if (!user) return <><GlobalStyles /><LoginPage onLogin={handleLogin} /></>;
 

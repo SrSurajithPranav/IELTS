@@ -26,5 +26,10 @@ class User(db.Model):
             'score': self.score,
             'streak': self.streak,
             'weak_areas': self.weak_areas.split(',') if self.weak_areas else [],
-            'zoom_link': self.zoom_link
+            'zoom_link': self.zoom_link,
+            'listening_band': 7.0,
+            'reading_band': 6.5,
+            'writing_band': 6.0,
+            'speaking_band': 6.5,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
