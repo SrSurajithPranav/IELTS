@@ -5,6 +5,7 @@ import AdminJobTokens from "./pages/admin/JobTokens.jsx";
 import ReviewAudits from './pages/admin/ReviewAudits.jsx';
 import React, { useState, useEffect, useContext, createContext, useRef } from "react";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import {
   API_BASE_URL,
   apiCall,
@@ -1955,7 +1956,7 @@ const LiveClassPage = ({ user }) => {
 
 // ─────────────────────────────────────────────
 // ADMIN – OVERVIEW
-// ─────────────────────────────────────────────
+// ──────────────────────────────────��──────────
 const AdminHome = () => {
   const [students, setStudents] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -2992,46 +2993,46 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <GlobalStyles />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <NotificationProvider>
+        <GlobalStyles />
         <DebugBanner />
         <div style={{ marginRight: 18 }}>
           <React.Suspense fallback={null}>
             <NotificationCenter />
           </React.Suspense>
         </div>
-      </div>
-      <div style={{ display: "flex", minHeight: "100vh" }}>
-        <Sidebar page={page} setPage={setPage} user={user} onLogout={handleLogout} />
-        <main style={{ marginLeft: "var(--sidebar-w)", flex: 1, padding: "32px 32px 32px", minHeight: "100vh", overflowY: "auto" }}>
-          <div style={{ maxWidth: 860 }}>
-            {content}
-          </div>
-        </main>
-      </div>
-      <ThemeToggle />
-      <button
-        onClick={openQuickMeet}
-        title="Start a quick meet"
-        style={{
-          position: "fixed",
-          right: 20,
-          bottom: 20,
-          zIndex: 40,
-          width: 58,
-          height: 58,
-          borderRadius: "50%",
-          border: "none",
-          background: "linear-gradient(135deg, var(--accent), var(--accent2))",
-          color: "#fff",
-          boxShadow: "0 16px 34px rgba(20,108,114,.28)",
-          fontSize: 24,
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        🎥
-      </button>
+        <div style={{ display: "flex", minHeight: "100vh" }}>
+          <Sidebar page={page} setPage={setPage} user={user} onLogout={handleLogout} />
+          <main style={{ marginLeft: "var(--sidebar-w)", flex: 1, padding: "32px 32px 32px", minHeight: "100vh", overflowY: "auto" }}>
+            <div style={{ maxWidth: 860 }}>
+              {content}
+            </div>
+          </main>
+        </div>
+        <ThemeToggle />
+        <button
+          onClick={openQuickMeet}
+          title="Start a quick meet"
+          style={{
+            position: "fixed",
+            right: 20,
+            bottom: 20,
+            zIndex: 40,
+            width: 58,
+            height: 58,
+            borderRadius: "50%",
+            border: "none",
+            background: "linear-gradient(135deg, var(--accent), var(--accent2))",
+            color: "#fff",
+            boxShadow: "0 16px 34px rgba(20,108,114,.28)",
+            fontSize: 24,
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          🎥
+        </button>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

@@ -125,8 +125,32 @@ def update_student(student_id):
                 student.weak_areas = ",".join(data[field])
             else:
                 setattr(student, field, data[field])
+    
+    # Handle plan_id assignment
+    if "plan_id" in data:
+        plan_id = data["plan_id"]
+        # Deactivate existing active plan if any
+        existing_sp = StudentPlan.query.filter_by(student_id=student_id, is_active=True).first()
+        if existing_sp:
+            existing_sp.is_active = False
+        
+        # If plan_id is provided and not None/0, create new assignment
+        if plan_id:
+            new_sp = StudentPlan(
+                student_id=student_id,
+                plan_id=int(plan_id),
+                start_date=datetime.utcnow().date(),
+                is_active=True,
+            )
+            db.session.add(new_sp)
+    
     db.session.commit()
-    return jsonify(student.to_dict())
+    
+    # Return student with current plan info
+    result = student.to_dict()
+    sp = StudentPlan.query.filter_by(student_id=student_id, is_active=True).first()
+    result["plan_id"] = sp.plan_id if sp else None
+    return jsonify(result)
 
 
 @students_bp.route("/<int:student_id>", methods=["DELETE"])

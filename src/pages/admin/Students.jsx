@@ -177,7 +177,7 @@ export default function AdminStudents() {
     setLoading(true);
     Promise.all([studentsAPI.getAll(), plansAPI.getAll()])
       .then(([s, p]) => { setStudents(s || []); setPlans(p || []); })
-      .catch(() => {})
+      .catch((err) => { notifyError(err.message || 'Failed to load data'); })
       .finally(() => setLoading(false));
   };
 
@@ -235,7 +235,7 @@ export default function AdminStudents() {
           No students found.
         </Card>
       ) : filtered.map((s) => (
-        <Card key={s.id} className="fade-up-3" style={{ marginBottom: 10, padding: '14px 18px' }}>
+        <Card key={s.id} className="fade-up-3" style={{ marginBottom: 10, padding: '14px 18px', cursor: 'pointer' }} onClick={() => setProfileTarget(s)}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 38, height: 38, borderRadius: '50%',
@@ -249,7 +249,7 @@ export default function AdminStudents() {
               <div style={{ fontWeight: 600, fontSize: 14 }}>{s.name}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>{s.email}</div>
             </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
               {s.score > 0 && <Badge label={`${s.score} pts`} color="gold" size="xs" />}
               {s.streak > 0 && <Badge label={`${s.streak}🔥`} color="warn" size="xs" />}
               <Button size="xs" variant="ghost" onClick={() => setDeleteTarget(s)}>Remove</Button>
@@ -344,6 +344,18 @@ export default function AdminStudents() {
           ))}
         </div>
       </Modal>
+
+      {/* Student Profile Modal */}
+      <StudentProfileModal
+        student={profileTarget}
+        plans={plans}
+        open={!!profileTarget}
+        onClose={() => setProfileTarget(null)}
+        onSaved={() => {
+          setProfileTarget(null);
+          load();
+        }}
+      />
 
       {/* Confirm Delete */}
       <ConfirmModal
