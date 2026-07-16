@@ -1116,11 +1116,18 @@ const WritingBrainstormPanel = () => {
   );
 };
 const analyzeWriting = (text) => {
-  const words = text.split(/\s+/).length;
+  if (!text || text.trim().length === 0) {
+    return null; // No analysis when text is empty
+  }
+  
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words < 10) {
+    return null; // Need at least 10 words for analysis
+  }
 
   return {
-    grammarScore: Math.min(100, 60 + words / 5),
-    vocabularyScore: 70,
+    grammarScore: Math.min(100, Math.round(60 + (words / 10))),
+    vocabularyScore: Math.min(100, Math.round(65 + (words / 20))),
     suggestions: [
       "Use more complex sentence structures",
       "Avoid repetition",
