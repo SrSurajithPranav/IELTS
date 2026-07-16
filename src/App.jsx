@@ -418,7 +418,16 @@ const LoginPage = ({ onLogin }) => {
       if (!res || !res.token) throw new Error('Invalid response from server');
       localStorage.setItem("jwt_token", res.token);
       const usr = res.user;
-      onLogin({ id: usr.id, name: usr.name, email: usr.email, role: usr.role, streak: usr.streak || 0, score: usr.score || 0 });
+      onLogin({
+        id: usr.id, name: usr.name, email: usr.email, role: usr.role,
+        streak: usr.streak || 0, score: usr.score || 0,
+        created_at: usr.created_at || null,
+        listening_band: usr.listening_band || null,
+        reading_band: usr.reading_band || null,
+        writing_band: usr.writing_band || null,
+        speaking_band: usr.speaking_band || null,
+        weak_areas: usr.weak_areas || '',
+      });
     } catch (e) {
       setErr(e.message || "Login failed. If you are a student, wait for admin approval email confirmation.");
       setLoading(false);
@@ -777,10 +786,22 @@ const SpeakingFollowupPanel = () => {
   const [err, setErr] = useState('');
 
   const run = async () => {
-    if (!topic.trim()) return;
+    const t = topic.trim();
+    if (!t) return;
+    // Basic sanity check: topic should be at least 2 words or 8 chars to be a real IELTS topic
+    const words = t.split(/\s+/).filter(Boolean);
+    const CONVERSATIONAL = /^(hi|hello|hey|how are you|what|ok|okay|yes|no|thanks|bye)$/i;
+    if (words.length < 2 && t.length < 8) {
+      setErr('Please enter a proper IELTS topic, e.g. "Climate change" or "Social media and youth".');
+      return;
+    }
+    if (CONVERSATIONAL.test(t)) {
+      setErr('That looks like a greeting, not an IELTS topic. Try something like "Technology in education" or "Urbanisation".');
+      return;
+    }
     setLoading(true); setErr(''); setResult(null);
     try {
-      const res = await aiAPI.speakingFollowups(topic.trim(), level);
+      const res = await aiAPI.speakingFollowups(t, level);
       if (res?.error) setErr(res.error);
       else setResult(res);
     } catch (e) { setErr(e.message || 'Failed'); }
@@ -1391,7 +1412,9 @@ const AICoachPage = ({ user }) => {
   const loadRisk = async () => {
     setLoading(true); setErr(''); setRisk(null);
     try {
-      const res = await aiAPI.getRiskReport(user.id);
+      // Students call without student_id so backend uses their JWT identity.
+      // Admins may pass a student_id via the admin panel instead.
+      const res = await aiAPI.getRiskReport();
       if (res?.error) setErr(res.error);
       else setRisk(res);
     } catch (e) { setErr(e.message || 'Failed'); }
@@ -2973,7 +2996,16 @@ export default function App() {
         .then(res => {
           if (res && res.user) {
             const usr = res.user;
-            setUser({ id: usr.id, name: usr.name, email: usr.email, role: usr.role, streak: usr.streak || 0, score: usr.score || 0 });
+            setUser({
+              id: usr.id, name: usr.name, email: usr.email, role: usr.role,
+              streak: usr.streak || 0, score: usr.score || 0,
+              created_at: usr.created_at || null,
+              listening_band: usr.listening_band || null,
+              reading_band: usr.reading_band || null,
+              writing_band: usr.writing_band || null,
+              speaking_band: usr.speaking_band || null,
+              weak_areas: usr.weak_areas || '',
+            });
             setPage(usr.role === "admin" ? "admin-home" : "dashboard");
           }
         })
