@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import secrets
+import os
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -196,3 +197,30 @@ def me():
     """
     user = User.query.get(int(get_jwt_identity()))
     return jsonify(user.to_dict())
+
+
+  # Temporary setup endpoint: promote a user to admin using a one-time token
+  # Usage (after setting ADMIN_SETUP_TOKEN in env):
+  # POST /api/auth/setup/promote with JSON {"email": "admin@test.com"}
+  # Header: X-Setup-Token: <token>
+  @auth_bp.route('/setup/promote', methods=['POST'])
+  def setup_promote():
+    token = request.headers.get('X-Setup-Token') or request.args.get('token')
+    expected = os.getenv('ADMIN_SETUP_TOKEN')
+    if not expected:
+      return jsonify({'error': 'Setup token not configured on server'}), 503
+    if not token or token != expected:
+      return jsonify({'error': 'Invalid setup token'}), 401
+
+    data = request.get_json() or {}
+    email = data.get('email')
+    if not email:
+      return jsonify({'error': 'email is required'}), 400
+
+    user = User.query.filter_by(email=email.strip().lower()).first()
+    if not user:
+      return jsonify({'error': 'user not found'}), 404
+
+    user.role = 'admin'
+    db.session.commit()
+    return jsonify({'message': f'{user.email} promoted to admin'}), 200
