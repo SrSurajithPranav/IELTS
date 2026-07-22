@@ -19,7 +19,7 @@ function _resolveApiBase() {
     return `${window.location.protocol}//${backendHost}/api`;
   }
   if (typeof window !== 'undefined' && /vercel\.app$/i.test(_host)) {
-    return 'https://ielts-api.onrender.com/api';
+    return 'https://ielts-1-pyfj.onrender.com/api';
   }
   // Fallback: relative /api (works locally with Vite proxy and on Vercel via rewrites)
   return '/api';
