@@ -199,27 +199,27 @@ def me():
     return jsonify(user.to_dict())
 
 
-  # Temporary setup endpoint: promote a user to admin using a one-time token
-  # Usage (after setting ADMIN_SETUP_TOKEN in env):
-  # POST /api/auth/setup/promote with JSON {"email": "admin@test.com"}
-  # Header: X-Setup-Token: <token>
-  @auth_bp.route('/setup/promote', methods=['POST'])
-  def setup_promote():
+# Temporary setup endpoint: promote a user to admin using a one-time token
+# Usage (after setting ADMIN_SETUP_TOKEN in env):
+# POST /api/auth/setup/promote with JSON {"email": "admin@test.com"}
+# Header: X-Setup-Token: <token>
+@auth_bp.route('/setup/promote', methods=['POST'])
+def setup_promote():
     token = request.headers.get('X-Setup-Token') or request.args.get('token')
     expected = os.getenv('ADMIN_SETUP_TOKEN')
     if not expected:
-      return jsonify({'error': 'Setup token not configured on server'}), 503
+        return jsonify({'error': 'Setup token not configured on server'}), 503
     if not token or token != expected:
-      return jsonify({'error': 'Invalid setup token'}), 401
+        return jsonify({'error': 'Invalid setup token'}), 401
 
     data = request.get_json() or {}
     email = data.get('email')
     if not email:
-      return jsonify({'error': 'email is required'}), 400
+        return jsonify({'error': 'email is required'}), 400
 
     user = User.query.filter_by(email=email.strip().lower()).first()
     if not user:
-      return jsonify({'error': 'user not found'}), 404
+        return jsonify({'error': 'user not found'}), 404
 
     user.role = 'admin'
     db.session.commit()
