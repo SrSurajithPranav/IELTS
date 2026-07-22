@@ -1,4 +1,7 @@
 import trainingBank from '../ielts_massive_training_bank.json';
+import { normalizeTrainingBankData } from './questionBankUtils.js';
+
+const normalizedTrainingBank = normalizeTrainingBankData(trainingBank);
 
 // Filter out corrupt/verification-artifact questions from the training bank
 const CORRUPT_PATTERNS = [
@@ -12,7 +15,7 @@ const isCorruptQuestion = (q) => {
   if (!q || !q.q) return true;
   return CORRUPT_PATTERNS.some((rx) => rx.test(q.q) || rx.test(String(q.c || '')) || (q.opts || []).some((o) => rx.test(String(o))));
 };
-const cleanBank = trainingBank.filter((item) => !isCorruptQuestion(toLegacyQuestion(item)));
+const cleanBank = normalizedTrainingBank.filter((item) => !isCorruptQuestion(toLegacyQuestion(item)));
 
 
 const toLegacyQuestion = (item) => ({
@@ -51,13 +54,20 @@ export const VOCAB_QUESTIONS = [
   { id: 'V010', q: "'The research ___ several unexpected patterns.' - best verb?", opts: ['showed', 'told', 'said', 'spoke'], c: 0, exp: "Research 'shows' or 'reveals'.", diff: 'beginner', tag: 'academic-verbs' },
 ];
 
-export const READING_QUESTIONS = (trainingBank.reading || []).map(toLegacyQuestion);
+const trainingBankSections = {
+  reading: Array.isArray(trainingBank?.reading) ? trainingBank.reading : [],
+  listening: Array.isArray(trainingBank?.listening) ? trainingBank.listening : [],
+  writing: Array.isArray(trainingBank?.writing) ? trainingBank.writing : [],
+  speaking: Array.isArray(trainingBank?.speaking) ? trainingBank.speaking : [],
+};
 
-export const LISTENING_QUESTIONS = (trainingBank.listening || []).map(toLegacyQuestion);
+export const READING_QUESTIONS = trainingBankSections.reading.map(toLegacyQuestion);
 
-export const WRITING_QUESTIONS = (trainingBank.writing || []).map(toLegacyQuestion);
+export const LISTENING_QUESTIONS = trainingBankSections.listening.map(toLegacyQuestion);
 
-export const SPEAKING_QUESTIONS = (trainingBank.speaking || []).map(toLegacyQuestion);
+export const WRITING_QUESTIONS = trainingBankSections.writing.map(toLegacyQuestion);
+
+export const SPEAKING_QUESTIONS = trainingBankSections.speaking.map(toLegacyQuestion);
 
 export const TEST_KNOWLEDGE_QUESTIONS = [
   { id: 'TK001', q: 'Which IELTS band score is typically required for UK university admission?', opts: ['5.0', '5.5', '6.0-6.5', '9.0'], c: 2, exp: 'Typical requirement is around 6.0-6.5 overall.', diff: 'beginner', tag: 'band-requirements' },
