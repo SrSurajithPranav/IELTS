@@ -18,7 +18,10 @@ function _resolveApiBase() {
     const backendHost = _host.replace(/-\d+\.app\.github\.dev$/, '-5000.app.github.dev');
     return `${window.location.protocol}//${backendHost}/api`;
   }
-  // Fallback: relative /api (only works if Vite proxy is active on same port)
+  if (typeof window !== 'undefined' && /vercel\.app$/i.test(_host)) {
+    return 'https://ielts-api.onrender.com/api';
+  }
+  // Fallback: relative /api (works locally with Vite proxy and on Vercel via rewrites)
   return '/api';
 }
 
