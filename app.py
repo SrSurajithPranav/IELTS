@@ -21,6 +21,7 @@ from models.notification import Notification
 from models.session import LiveSession, SessionRecording
 from models.quiz import Quiz, QuizQuestion, QuizAttempt
 from models.resource import Resource
+from utils.schema import ensure_user_schema_columns
 
 def create_app(config_name=None):
     """Application factory."""
@@ -226,6 +227,13 @@ def create_app(config_name=None):
                 "Supabase/Postgres connection string, that special characters in the "
                 "password are URL-encoded, and that the host/user pair matches the "
                 "copy-pasted value from Supabase Dashboard."
+            ) from exc
+
+        try:
+            ensure_user_schema_columns(db)
+        except Exception as exc:
+            raise RuntimeError(
+                "Database schema migration failed during startup. Check the database permissions and connection string."
             ) from exc
 
         inspector = inspect(db.engine)
