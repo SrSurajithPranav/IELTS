@@ -1454,25 +1454,34 @@ const AICoachPage = ({ user }) => {
 // PROGRESS PAGE
 // ─────────────────────────────────────────────
 const ProgressPage = ({ user }) => {
-  // Calculate progress dynamically based on user creation date
-  const PROGRAM_DURATION_DAYS = 60;
-  const userCreatedDate = new Date(user.created_at || new Date());
+  const [activePlanInfo, setActivePlanInfo] = useState(null);
+  useEffect(() => {
+    plansAPI.getMy().then((res) => setActivePlanInfo(res || null)).catch(() => {});
+  }, []);
+
+  const PROGRAM_DURATION_DAYS = activePlanInfo?.active_plan?.plan?.duration_days || 60;
+  const startDate = activePlanInfo?.active_plan?.start_date
+    ? new Date(activePlanInfo.active_plan.start_date)
+    : new Date(user.created_at || new Date());
   const today = new Date();
-  const daysSinceStart = Math.max(0, Math.floor((today - userCreatedDate) / (1000 * 60 * 60 * 24)) + 1);
+  const daysSinceStart = Math.max(0, Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1);
   const currentDay = Math.min(daysSinceStart, PROGRAM_DURATION_DAYS);
   const progressPct = Math.round((currentDay / PROGRAM_DURATION_DAYS) * 100);
   const daysToGo = PROGRAM_DURATION_DAYS - currentDay;
   const progressPercentToGo = 100 - progressPct;
-  
-  // Skill data based on user data (default if not available)
+
+  // Bands are null until a teacher reviews a submission – never use fake defaults
   const skillData = [
-    { label: "Listening", score: user.listening_band || 6.0, color: "var(--success)" },
-    { label: "Reading",   score: user.reading_band || 6.0, color: "var(--warn)" },
-    { label: "Writing",   score: user.writing_band || 6.0, color: "#a78bfa" },
-    { label: "Speaking",  score: user.speaking_band || 6.0, color: "var(--accent)" },
+    { label: "Listening", score: user.listening_band ?? null, color: "var(--success)" },
+    { label: "Reading",   score: user.reading_band   ?? null, color: "var(--warn)" },
+    { label: "Writing",   score: user.writing_band   ?? null, color: "#a78bfa" },
+    { label: "Speaking",  score: user.speaking_band  ?? null, color: "var(--accent)" },
   ];
-  const overall = (skillData.reduce((a, b) => a + b.score, 0) / skillData.length).toFixed(1);
-  const weakAreas = skillData.filter(s => s.score < 6.5).map(s => s.label);
+  const ratedSkills = skillData.filter(s => s.score !== null);
+  const overall = ratedSkills.length
+    ? (ratedSkills.reduce((a, b) => a + b.score, 0) / ratedSkills.length).toFixed(1)
+    : "—";
+  const weakAreas = ratedSkills.filter(s => s.score < 6.5).map(s => s.label);
   const memoryItems = Object.entries(loadMistakeMemory())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
@@ -1530,14 +1539,22 @@ const ProgressPage = ({ user }) => {
 
       {/* Skills */}
       <Card className="fade-up-4" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 600, marginBottom: 16 }}>Skills Breakdown</div>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>Skills Breakdown</div>
+        {ratedSkills.length === 0 && (
+          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
+            Bands appear here once your teacher reviews your first submission.
+          </div>
+        )}
         {skillData.map((s, i) => (
           <div key={i} style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={{ fontSize: 13 }}>{s.label}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>Band {s.score}</span>
+              {s.score !== null
+                ? <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>Band {s.score}</span>
+                : <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>Not yet rated</span>
+              }
             </div>
-            <ProgressBar pct={(s.score / 9) * 100} color={s.color} height={8} />
+            {s.score !== null && <ProgressBar pct={(s.score / 9) * 100} color={s.color} height={8} />}
           </div>
         ))}
       </Card>
@@ -1597,7 +1614,7 @@ const StudentPlansPage = () => {
       setMsg("");
       await plansAPI.select(planId);
       setActivePlanId(planId);
-      setMsg("Plan selected. Notification email sent to srsurajith@gmail.com.");
+      setMsg("Plan selected! Your teacher has been notified.");
     } catch (e) {
       setMsg(e.message || "Plan selection failed");
     }
@@ -1890,8 +1907,24 @@ const LeaderboardPage = () => {
       </div>
 
       <div className="fade-up-2">
+        {leaderboardData.length === 0 && (
+          <Card style={{ textAlign: "center", padding: 40 }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🏆</div>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Leaderboard is empty</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>
+              Complete tasks and earn reviewed band scores to appear here.
+            </div>
+          </Card>
+        )}
+        {leaderboardData.length > 0 && leaderboardData.every(u => u.points === 0) && (
+          <Card style={{ marginBottom: 14, background: "rgba(79,142,247,.06)", border: "1px solid rgba(79,142,247,.2)", padding: "12px 16px" }}>
+            <div style={{ fontSize: 12, color: "var(--accent)" }}>
+              🎯 Earn points by submitting tasks and getting teacher reviews. Your rank updates automatically.
+            </div>
+          </Card>
+        )}
         {leaderboardData.map((u, i) => {
-          const isMedal = u.rank <= 3;
+          const isMedal = u.rank <= 3 && u.points > 0;
           const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
           return (
             <Card key={i} style={{
@@ -1913,7 +1946,7 @@ const LeaderboardPage = () => {
                 <div style={{ textAlign: "right", display: "flex", gap: 20 }}>
                   <div>
                     <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Score</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)" }}>{u.score}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)" }}>{u.score || "—"}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Points</div>

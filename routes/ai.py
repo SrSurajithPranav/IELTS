@@ -290,12 +290,24 @@ def analyze_debate():
 
     words = [w for w in argument.split() if w]
     token_count = len(words)
+
+    # Reject arguments that are too short to be meaningful
+    if token_count < 20:
+        return jsonify({'error': 'Please write at least 20 words for a meaningful analysis.'}), 400
+
+    # Reject gibberish: require at least 60% alphabetic words
+    alpha_words = [w for w in words if re.sub(r"[^a-zA-Z]", "", w)]
+    if len(alpha_words) / token_count < 0.60:
+        return jsonify({'error': 'Your argument contains too many non-English characters. Please write in English.'}), 400
+
     connector_pool = ['however', 'therefore', 'moreover', 'although', 'because', 'while', 'whereas', 'consequently']
     connector_count = sum(argument.lower().count(connector) for connector in connector_pool)
     lexical_variety = len(set(w.lower().strip('.,!?') for w in words)) / max(token_count, 1)
 
     structure_score = min(100, 45 + connector_count * 12 + min(token_count, 140) * 0.2)
-    vocabulary_score = min(100, 40 + lexical_variety * 65)
+    # Cap vocabulary benefit by a length factor so short texts cannot score 100
+    length_factor = min(1.0, token_count / 80)
+    vocabulary_score = min(100, (40 + lexical_variety * 65) * length_factor)
     argument_score = min(100, round((structure_score * 0.55) + (vocabulary_score * 0.45), 1))
     band_estimate = min(9.0, round(4.5 + (argument_score / 100) * 4.0, 1))
 

@@ -1,5 +1,20 @@
 import trainingBank from '../ielts_massive_training_bank.json';
 
+// Filter out corrupt/verification-artifact questions from the training bank
+const CORRUPT_PATTERNS = [
+  /VERIFIED-\d+/i,
+  /Verification Status/i,
+  /Phase \d{3}/i,
+  /Analysis Phase/i,
+  /^\s*\d{3,}\s*$/,
+];
+const isCorruptQuestion = (q) => {
+  if (!q || !q.q) return true;
+  return CORRUPT_PATTERNS.some((rx) => rx.test(q.q) || rx.test(String(q.c || '')) || (q.opts || []).some((o) => rx.test(String(o))));
+};
+const cleanBank = trainingBank.filter((item) => !isCorruptQuestion(toLegacyQuestion(item)));
+
+
 const toLegacyQuestion = (item) => ({
   id: item.id,
   q: item.question,

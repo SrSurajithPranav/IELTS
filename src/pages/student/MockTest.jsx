@@ -90,6 +90,9 @@ export default function MockTestPage() {
           ? await aiAPI.analyzeWriting(text)
           : await aiAPI.analyzeSpeaking(text);
         setResult(res);
+        // Persist so teachers can review mock-test submissions
+        const label = `Mock Test – ${skill[0].toUpperCase() + skill.slice(1)} – ${test.title}`;
+        submissionsAPI.submitStandalone(label, text).catch(() => {});
       } catch (e) {
         notifyError(e.message || 'AI analysis failed');
       } finally {

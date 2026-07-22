@@ -122,6 +122,12 @@ export const tasksAPI = {
 
 // ── Submissions ───────────────────────────────────────────
 export const submissionsAPI = {
+  /** Standalone submission (mock test / practice) – no task_id required. */
+  submitStandalone: (label, content) =>
+    apiCall('/submissions/', {
+      method: 'POST',
+      body: JSON.stringify({ content: `${label}\n\n${content}` }),
+    }),
   submit: (taskId, content, audioBlob) => {
     const formData = new FormData();
     formData.append('task_id', taskId);
@@ -349,24 +355,23 @@ export const attendanceAPI = {
     apiCall('/attendance/', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }),
 };
 
+// ── Submission review (teacher/admin) ─────────────────────
+export const submissionReviewAPI = {
+  /** POST feedback + optional band_score (0–9) for a submission. */
+  review: (submissionId, feedbackText, bandScore = null) =>
+    apiCall(`/submissions/review/${submissionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback_text: feedbackText, band_score: bandScore }),
+    }),
+};
+
 // ── Legacy helpers (backward compat) ─────────────────────
 export { apiCall as default };
 
-// ── Demo account filter ───────────────────────────────────
-const DEMO_STUDENT_EMAILS = new Set([
-  'student1@gmail.com',
-  'student2@gmail.com',
-  'student3@gmail.com',
-  'student4@gmail.com',
-  'student5@gmail.com',
-  'student@ielts.com',
-  'priya@ielts.com',
-  'ravi@ielts.com',
-]);
-export const visibleStudents = (rows) =>
-  Array.isArray(rows)
-    ? rows.filter((s) => !DEMO_STUDENT_EMAILS.has(String(s?.email || '').toLowerCase()))
-    : [];
+// ── Student list helper ───────────────────────────────────
+// Email-based demo filter removed: it silently excluded real students whose
+// email happened to match the list. All accounts are now shown.
+export const visibleStudents = (rows) => (Array.isArray(rows) ? rows : []);
 
 // ── Mistake memory (localStorage) ────────────────────────
 export const loadMistakeMemory = () => {

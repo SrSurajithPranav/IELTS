@@ -15,38 +15,44 @@ const COLOR_MAP = {
   listening: 'var(--success)', reading: 'var(--warn)', grammar: 'var(--gold)',
 };
 
+const MAX_RECORDING_SECONDS = 300; // 5 minutes
+
 function AudioRecorder({ onBlob }) {
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [blob, setBlob] = useState(null);
   const recRef = useRef(null);
   const timerRef = useRef(null);
+  const autoStopRef = useRef(null);
 
   const start = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream);
       const chunks = [];
-      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
       rec.onstop = () => {
+        // Stop tracks AFTER onstop fires so the final chunk is captured
+        stream.getTracks().forEach((t) => t.stop());
         const b = new Blob(chunks, { type: 'audio/webm' });
         setBlob(b);
         onBlob(b);
       };
-      rec.start();
+      rec.start(250); // collect chunks every 250 ms
       recRef.current = rec;
       setRecording(true);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((t) => t + 1), 1000);
+      autoStopRef.current = setTimeout(() => stop(), MAX_RECORDING_SECONDS * 1000);
     } catch {
       alert('Microphone access denied.');
     }
   };
 
   const stop = () => {
-    recRef.current?.stop();
-    recRef.current?.stream?.getTracks().forEach((t) => t.stop());
+    clearTimeout(autoStopRef.current);
     clearInterval(timerRef.current);
+    recRef.current?.stop(); // triggers onstop → stream tracks stopped inside
     setRecording(false);
   };
 
