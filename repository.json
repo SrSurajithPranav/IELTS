@@ -1,0 +1,1154 @@
+{
+  "generatedAt": "2026-07-23T04:49:42.436Z",
+  "fileCount": 194,
+  "files": [
+    {
+      "path": ".env.backend.example",
+      "language": null
+    },
+    {
+      "path": ".env.example",
+      "language": null
+    },
+    {
+      "path": ".env.frontend.example",
+      "language": null
+    },
+    {
+      "path": ".github/ARCHITECTURE.txt",
+      "language": null
+    },
+    {
+      "path": ".github/DEVELOPER_GUIDE.md",
+      "language": "markdown"
+    },
+    {
+      "path": ".github/ENVIRONMENT_SETUP.md",
+      "language": "markdown"
+    },
+    {
+      "path": ".github/FEATURES_IMPLEMENTATION.md",
+      "language": "markdown"
+    },
+    {
+      "path": ".github/FEATURES_SUMMARY.txt",
+      "language": null
+    },
+    {
+      "path": ".github/INTEGRATION_CHECKLIST.md",
+      "language": "markdown"
+    },
+    {
+      "path": ".github/INTEGRATION_GUIDE.md",
+      "language": "markdown"
+    },
+    {
+      "path": ".github/QUICK_START.sh",
+      "language": null
+    },
+    {
+      "path": ".github/README.md",
+      "language": "markdown"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "language": null
+    },
+    {
+      "path": ".github/workflows/deploy-backend.yml",
+      "language": null
+    },
+    {
+      "path": ".github/workflows/deploy-frontend.yml",
+      "language": null
+    },
+    {
+      "path": ".github/workflows/deploy.yml",
+      "language": null
+    },
+    {
+      "path": ".gitignore",
+      "language": null
+    },
+    {
+      "path": "ADDITIONAL_BUGS_FOUND.md",
+      "language": "markdown"
+    },
+    {
+      "path": "API_REFERENCE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "AUDIT_COMPLETE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "BACKEND_README.md",
+      "language": "markdown"
+    },
+    {
+      "path": "BUGFIXES.md",
+      "language": "markdown"
+    },
+    {
+      "path": "BUG_AND_HARDCODE_REPORT.md",
+      "language": "markdown"
+    },
+    {
+      "path": "COMPLETE_FIX_SUMMARY.md",
+      "language": "markdown"
+    },
+    {
+      "path": "CREDENTIALS_AND_STATUS.md",
+      "language": "markdown"
+    },
+    {
+      "path": "DEPLOYMENT.md",
+      "language": "markdown"
+    },
+    {
+      "path": "DEPLOYMENT_BEGINNER.md",
+      "language": "markdown"
+    },
+    {
+      "path": "DEPLOYMENT_GUIDE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "DEPLOYMENT_PRODUCTION.md",
+      "language": "markdown"
+    },
+    {
+      "path": "DEPLOYMENT_VERIFICATION.md",
+      "language": "markdown"
+    },
+    {
+      "path": "DEPLOY_IN_15_MIN.md",
+      "language": "markdown"
+    },
+    {
+      "path": "Dockerfile",
+      "language": null
+    },
+    {
+      "path": "FEATURE_VERIFICATION_GUIDE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "FINAL_STATUS_REPORT.md",
+      "language": "markdown"
+    },
+    {
+      "path": "FIXES_APPLIED.md",
+      "language": "markdown"
+    },
+    {
+      "path": "FIXES_IMPLEMENTED.md",
+      "language": "markdown"
+    },
+    {
+      "path": "FRONTEND_SETUP.md",
+      "language": "markdown"
+    },
+    {
+      "path": "NEW_FILE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "PRODUCTION_READINESS_REPORT.md",
+      "language": "markdown"
+    },
+    {
+      "path": "Procfile",
+      "language": null
+    },
+    {
+      "path": "QUICK_DEPLOYMENT_REFERENCE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "QUICK_REFERENCE.txt",
+      "language": null
+    },
+    {
+      "path": "QUICK_SETUP.md",
+      "language": "markdown"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown"
+    },
+    {
+      "path": "README_FIXES.md",
+      "language": "markdown"
+    },
+    {
+      "path": "SETUP_SUMMARY.md",
+      "language": "markdown"
+    },
+    {
+      "path": "STEP_BY_STEP_GUIDE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "TEST_REPORT.md",
+      "language": "markdown"
+    },
+    {
+      "path": "UI_DESIGN_SPECIFICATION.md",
+      "language": "markdown"
+    },
+    {
+      "path": "VISUAL_GUIDE.md",
+      "language": "markdown"
+    },
+    {
+      "path": "WORKING_CREDENTIALS.txt",
+      "language": null
+    },
+    {
+      "path": "admin-test.png",
+      "language": null
+    },
+    {
+      "path": "after-login.png",
+      "language": null
+    },
+    {
+      "path": "after-refresh.png",
+      "language": null
+    },
+    {
+      "path": "app.py",
+      "language": "python"
+    },
+    {
+      "path": "config.py",
+      "language": "python"
+    },
+    {
+      "path": "create_admin.py",
+      "language": "python"
+    },
+    {
+      "path": "extensions.py",
+      "language": "python"
+    },
+    {
+      "path": "fly.toml.sample",
+      "language": null
+    },
+    {
+      "path": "ielts_massive_training_bank.json",
+      "language": "json"
+    },
+    {
+      "path": "index.html",
+      "language": "html"
+    },
+    {
+      "path": "login-fixed.png",
+      "language": null
+    },
+    {
+      "path": "login.png",
+      "language": null
+    },
+    {
+      "path": "logout-screen.png",
+      "language": null
+    },
+    {
+      "path": "migrate_db.py",
+      "language": "python"
+    },
+    {
+      "path": "models/__init__.py",
+      "language": "python"
+    },
+    {
+      "path": "models/announcement.py",
+      "language": "python"
+    },
+    {
+      "path": "models/attendance.py",
+      "language": "python"
+    },
+    {
+      "path": "models/batch.py",
+      "language": "python"
+    },
+    {
+      "path": "models/booking_slot.py",
+      "language": "python"
+    },
+    {
+      "path": "models/db.py",
+      "language": "python"
+    },
+    {
+      "path": "models/job_token.py",
+      "language": "python"
+    },
+    {
+      "path": "models/login_request.py",
+      "language": "python"
+    },
+    {
+      "path": "models/mistake.py",
+      "language": "python"
+    },
+    {
+      "path": "models/notification.py",
+      "language": "python"
+    },
+    {
+      "path": "models/plan.py",
+      "language": "python"
+    },
+    {
+      "path": "models/quiz.py",
+      "language": "python"
+    },
+    {
+      "path": "models/resource.py",
+      "language": "python"
+    },
+    {
+      "path": "models/review_audit.py",
+      "language": "python"
+    },
+    {
+      "path": "models/session.py",
+      "language": "python"
+    },
+    {
+      "path": "models/speaking_topic.py",
+      "language": "python"
+    },
+    {
+      "path": "models/student_plan.py",
+      "language": "python"
+    },
+    {
+      "path": "models/submission.py",
+      "language": "python"
+    },
+    {
+      "path": "models/task.py",
+      "language": "python"
+    },
+    {
+      "path": "models/user.py",
+      "language": "python"
+    },
+    {
+      "path": "models/vocabulary.py",
+      "language": "python"
+    },
+    {
+      "path": "package-lock.json",
+      "language": "json"
+    },
+    {
+      "path": "package.json",
+      "language": "json"
+    },
+    {
+      "path": "plan-tab-final.png",
+      "language": null
+    },
+    {
+      "path": "profile-modal-test.png",
+      "language": null
+    },
+    {
+      "path": "requirements.txt",
+      "language": null
+    },
+    {
+      "path": "routes/__init__.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/ai.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/announcements.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/attendance.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/auth.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/batches.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/bookings.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/feedback.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/leaderboard.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/listening.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/mistakes.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/notifications.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/plans.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/quizzes.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/reading.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/sessions.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/speaking.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/students.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/submissions.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/tasks.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/users.py",
+      "language": "python"
+    },
+    {
+      "path": "routes/vocabulary.py",
+      "language": "python"
+    },
+    {
+      "path": "run_socketio.py",
+      "language": "python"
+    },
+    {
+      "path": "runtime.txt",
+      "language": null
+    },
+    {
+      "path": "scripts/run_generate_review_quizzes.sh",
+      "language": null
+    },
+    {
+      "path": "scripts/seed_users.py",
+      "language": "python"
+    },
+    {
+      "path": "scripts/systemd/README.md",
+      "language": "markdown"
+    },
+    {
+      "path": "scripts/systemd/run_generate_review_quizzes.service",
+      "language": null
+    },
+    {
+      "path": "scripts/systemd/run_generate_review_quizzes.timer",
+      "language": null
+    },
+    {
+      "path": "setup.sh",
+      "language": null
+    },
+    {
+      "path": "src/App.jsx",
+      "language": "javascript",
+      "functions": [
+        "App",
+        "GlobalStyles",
+        "DebugBanner",
+        "useAuth",
+        "generateTasksForDay",
+        "Badge",
+        "TaskTypeBadge",
+        "StatusBadge",
+        "ProgressRing",
+        "r",
+        "ProgressBar",
+        "BandHistoryChart",
+        "bands",
+        "dx",
+        "mapY",
+        "Spinner",
+        "Card",
+        "Btn",
+        "Sidebar",
+        "LoginPage",
+        "handle",
+        "TaskCard",
+        "startRecording",
+        "stopRecording",
+        "handleSubmit",
+        "StudentDashboard",
+        "TasksPage",
+        "SpeakingFollowupPanel",
+        "run",
+        "SpeakingPage",
+        "startListening",
+        "stopListening",
+        "runAnalysis",
+        "WritingBrainstormPanel",
+        "analyzeWriting",
+        "WritingPage",
+        "checkGrammar",
+        "rewriteBand9",
+        "DebateModePage",
+        "runDebateAnalysis",
+        "AICoachPage",
+        "loadRisk",
+        "ProgressPage",
+        "StudentPlansPage",
+        "load",
+        "choosePlan",
+        "GamesArenaPage",
+        "pick",
+        "next",
+        "MockTestPage"
+      ]
+    },
+    {
+      "path": "src/NewPages.jsx",
+      "language": "javascript",
+      "functions": [
+        "Card",
+        "Btn",
+        "Label",
+        "Badge",
+        "token",
+        "parseResponse",
+        "apiFetch",
+        "openExternal",
+        "isDemoStudent",
+        "visibleStudents",
+        "AdminAddStudent",
+        "set",
+        "submit",
+        "LiveSessionsPage",
+        "JitsiJoinButton",
+        "QuizzesPage",
+        "loadQuizzes",
+        "ThreeDotMenu",
+        "WritingTimedSession",
+        "run",
+        "VocabFlashcardDeck",
+        "mark",
+        "QuizRunner",
+        "pick",
+        "next",
+        "ResourcesPage",
+        "AdminSessionsMgr",
+        "setR",
+        "createSession",
+        "addRecording",
+        "AdminResourcesMgr",
+        "create",
+        "del",
+        "AdminQuizBuilder",
+        "refreshQuizzes",
+        "setM",
+        "setQ",
+        "setOpt",
+        "addQ",
+        "removeQ",
+        "save",
+        "autoGenerate",
+        "openPreview"
+      ]
+    },
+    {
+      "path": "src/components/AnnouncementBanner.jsx",
+      "language": "javascript",
+      "functions": [
+        "AnnouncementBanner"
+      ]
+    },
+    {
+      "path": "src/components/NotificationCenter.jsx",
+      "language": "javascript",
+      "functions": [
+        "NotificationCenter",
+        "load",
+        "markRead"
+      ]
+    },
+    {
+      "path": "src/components/ThemeToggle.jsx",
+      "language": "javascript",
+      "functions": [
+        "ThemeToggle"
+      ]
+    },
+    {
+      "path": "src/components/layout/MobileNav.jsx",
+      "language": "javascript",
+      "functions": [
+        "MobileNav"
+      ]
+    },
+    {
+      "path": "src/components/layout/PageLayout.jsx",
+      "language": "javascript",
+      "functions": [
+        "PageLayout"
+      ]
+    },
+    {
+      "path": "src/components/layout/Sidebar.jsx",
+      "language": "javascript",
+      "functions": [
+        "NavItem",
+        "Sidebar"
+      ]
+    },
+    {
+      "path": "src/components/listening/DictationDrill.jsx",
+      "language": "javascript",
+      "functions": [
+        "DictationDrill",
+        "fetchNew",
+        "checkAnswer"
+      ]
+    },
+    {
+      "path": "src/components/reading/AWLHighlighter.jsx",
+      "language": "javascript",
+      "functions": [
+        "AWLHighlighter",
+        "highlightAWL",
+        "handleCopyWord"
+      ]
+    },
+    {
+      "path": "src/components/reading/NGFalseDrill.jsx",
+      "language": "javascript",
+      "functions": [
+        "NGFalseDrill",
+        "loadDrill",
+        "checkAnswer"
+      ]
+    },
+    {
+      "path": "src/components/speaking/FillerWordDetector.jsx",
+      "language": "javascript",
+      "functions": [
+        "FillerWordDetector",
+        "playBeep",
+        "startListening",
+        "count",
+        "stopListening"
+      ]
+    },
+    {
+      "path": "src/components/speaking/Part3DepthChecker.jsx",
+      "language": "javascript",
+      "functions": [
+        "Part3DepthChecker",
+        "analyzeDepth",
+        "getBandColor"
+      ]
+    },
+    {
+      "path": "src/components/speaking/SpeakingTimer.jsx",
+      "language": "javascript",
+      "functions": [
+        "SpeakingTimer",
+        "startRecording",
+        "stopRecording",
+        "analyzeRecording",
+        "formatTime"
+      ]
+    },
+    {
+      "path": "src/components/ui/Badge.jsx",
+      "language": "javascript",
+      "functions": [
+        "Badge",
+        "TaskTypeBadge",
+        "StatusBadge"
+      ]
+    },
+    {
+      "path": "src/components/ui/Button.jsx",
+      "language": "javascript",
+      "functions": [
+        "Button"
+      ]
+    },
+    {
+      "path": "src/components/ui/Card.jsx",
+      "language": "javascript",
+      "functions": [
+        "Card",
+        "GlassCard",
+        "StatCard"
+      ]
+    },
+    {
+      "path": "src/components/ui/DotMenu.jsx",
+      "language": "javascript",
+      "functions": [
+        "DotMenu",
+        "handler"
+      ]
+    },
+    {
+      "path": "src/components/ui/Modal.jsx",
+      "language": "javascript",
+      "functions": [
+        "Modal",
+        "ConfirmModal",
+        "handler"
+      ]
+    },
+    {
+      "path": "src/components/ui/Progress.jsx",
+      "language": "javascript",
+      "functions": [
+        "ProgressRing",
+        "ProgressBar",
+        "MultiProgressBar",
+        "r"
+      ]
+    },
+    {
+      "path": "src/components/ui/Skeleton.jsx",
+      "language": "javascript",
+      "functions": [
+        "Skeleton",
+        "SkeletonText",
+        "SkeletonCard",
+        "SkeletonList",
+        "SkeletonGrid"
+      ]
+    },
+    {
+      "path": "src/components/ui/Spinner.jsx",
+      "language": "javascript",
+      "functions": [
+        "Spinner",
+        "PageSpinner"
+      ]
+    },
+    {
+      "path": "src/components/writing/ClicheDetector.jsx",
+      "language": "javascript",
+      "functions": [
+        "ClicheDetector",
+        "checkCliches"
+      ]
+    },
+    {
+      "path": "src/components/writing/CohesiveDeviceAnalyzer.jsx",
+      "language": "javascript",
+      "functions": [
+        "CohesiveDeviceAnalyzer",
+        "analyzeCohesive",
+        "getBandColor"
+      ]
+    },
+    {
+      "path": "src/components/writing/EssayStructureChecker.jsx",
+      "language": "javascript",
+      "functions": [
+        "EssayStructureChecker",
+        "checkStructure"
+      ]
+    },
+    {
+      "path": "src/components/writing/SentenceStarterLibrary.jsx",
+      "language": "javascript",
+      "functions": [
+        "SentenceStarterLibrary",
+        "handleInsert"
+      ]
+    },
+    {
+      "path": "src/components/writing/TimedWritingTest.jsx",
+      "language": "javascript",
+      "functions": [
+        "TimedWritingTest",
+        "formatTime",
+        "handleSubmit"
+      ]
+    },
+    {
+      "path": "src/contexts/AuthContext.jsx",
+      "language": "javascript",
+      "functions": [
+        "AuthProvider",
+        "useAuth"
+      ]
+    },
+    {
+      "path": "src/contexts/NotificationContext.jsx",
+      "language": "javascript",
+      "functions": [
+        "Toast",
+        "NotificationProvider",
+        "useNotification"
+      ]
+    },
+    {
+      "path": "src/contexts/ThemeContext.jsx",
+      "language": "javascript",
+      "functions": [
+        "useTheme",
+        "ThemeProvider",
+        "toggleTheme"
+      ]
+    },
+    {
+      "path": "src/data/questionBank.js",
+      "language": "javascript",
+      "functions": [
+        "getQuestions",
+        "getMixedQuiz",
+        "getAdaptiveQuestions",
+        "toLegacyQuestion"
+      ]
+    },
+    {
+      "path": "src/data/questionBankUtils.js",
+      "language": "javascript",
+      "functions": [
+        "normalizeTrainingBankData"
+      ]
+    },
+    {
+      "path": "src/ielts_massive_training_bank.json",
+      "language": "json"
+    },
+    {
+      "path": "src/main.jsx",
+      "language": "javascript",
+      "functions": []
+    },
+    {
+      "path": "src/pages/Login.jsx",
+      "language": "javascript",
+      "functions": [
+        "InputField",
+        "LoginPage",
+        "handle"
+      ]
+    },
+    {
+      "path": "src/pages/VocabularyPage.jsx",
+      "language": "javascript",
+      "functions": [
+        "VocabularyPage",
+        "handleAdd",
+        "toggleMastered",
+        "deleteWord"
+      ]
+    },
+    {
+      "path": "src/pages/admin/JobTokens.jsx",
+      "language": "javascript",
+      "functions": [
+        "formatExpiry",
+        "AdminJobTokens",
+        "load",
+        "onCreate",
+        "remove",
+        "copySecret"
+      ]
+    },
+    {
+      "path": "src/pages/admin/Overview.jsx",
+      "language": "javascript",
+      "functions": [
+        "AdminOverview"
+      ]
+    },
+    {
+      "path": "src/pages/admin/Plans.jsx",
+      "language": "javascript",
+      "functions": [
+        "AdminPlans",
+        "load",
+        "createPlan"
+      ]
+    },
+    {
+      "path": "src/pages/admin/Review.jsx",
+      "language": "javascript",
+      "functions": [
+        "AdminReview",
+        "load",
+        "saveFeedback"
+      ]
+    },
+    {
+      "path": "src/pages/admin/ReviewAudits.jsx",
+      "language": "javascript",
+      "functions": [
+        "ReviewAudits",
+        "buildFilters",
+        "load",
+        "exportCsv",
+        "applyFilters",
+        "clearFilters"
+      ]
+    },
+    {
+      "path": "src/pages/admin/Sessions.jsx",
+      "language": "javascript",
+      "functions": []
+    },
+    {
+      "path": "src/pages/admin/Students.jsx",
+      "language": "javascript",
+      "functions": [
+        "ThreeDotMenu",
+        "StudentProfileModal",
+        "AdminStudents",
+        "save",
+        "resetPassword",
+        "createReviewDrill",
+        "load",
+        "createStudent",
+        "deleteStudent"
+      ]
+    },
+    {
+      "path": "src/pages/student/Dashboard.jsx",
+      "language": "javascript",
+      "functions": [
+        "getGreeting",
+        "StudentDashboard"
+      ]
+    },
+    {
+      "path": "src/pages/student/Debate.jsx",
+      "language": "javascript",
+      "functions": [
+        "DebatePage",
+        "analyze"
+      ]
+    },
+    {
+      "path": "src/pages/student/Games.jsx",
+      "language": "javascript",
+      "functions": [
+        "ProgBar",
+        "useTimer",
+        "QuizEngine",
+        "SpeakingPractice",
+        "WritingPractice",
+        "GamesPage",
+        "pick",
+        "next",
+        "getAiFeedback",
+        "startQuiz",
+        "onQuizDone"
+      ]
+    },
+    {
+      "path": "src/pages/student/Leaderboard.jsx",
+      "language": "javascript",
+      "functions": [
+        "LeaderboardPage"
+      ]
+    },
+    {
+      "path": "src/pages/student/MockTest.jsx",
+      "language": "javascript",
+      "functions": [
+        "MockTestPage",
+        "fmt",
+        "handleSubmit"
+      ]
+    },
+    {
+      "path": "src/pages/student/Plans.jsx",
+      "language": "javascript",
+      "functions": [
+        "PlansPage",
+        "choosePlan"
+      ]
+    },
+    {
+      "path": "src/pages/student/Progress.jsx",
+      "language": "javascript",
+      "functions": [
+        "ProgressPage",
+        "loadAiPlan",
+        "generateDrill"
+      ]
+    },
+    {
+      "path": "src/pages/student/Speaking.jsx",
+      "language": "javascript",
+      "functions": [
+        "SpeakingPage",
+        "newPrompt",
+        "toggleListening",
+        "analyze"
+      ]
+    },
+    {
+      "path": "src/pages/student/Tasks.jsx",
+      "language": "javascript",
+      "functions": [
+        "AudioRecorder",
+        "TaskCard",
+        "TasksPage",
+        "start",
+        "stop",
+        "fmt",
+        "handleSubmit",
+        "load"
+      ]
+    },
+    {
+      "path": "src/pages/student/Writing.jsx",
+      "language": "javascript",
+      "functions": [
+        "WritingPage",
+        "analyze",
+        "doRewrite",
+        "runBrainstorm"
+      ]
+    },
+    {
+      "path": "src/services/api.js",
+      "language": "javascript",
+      "functions": [
+        "_resolveApiBase",
+        "parseJsonSafely",
+        "apiCall",
+        "multipartCall",
+        "ENV_API_BASE_URL",
+        "appendSearchParams",
+        "visibleStudents",
+        "loadMistakeMemory",
+        "pushMistakeMemory"
+      ]
+    },
+    {
+      "path": "src/styles/index.css",
+      "language": "css"
+    },
+    {
+      "path": "src/utils.jsx",
+      "language": "javascript",
+      "functions": [
+        "useToast",
+        "ToastProvider",
+        "setupAutoRefresh",
+        "refresh",
+        "fetchNotifs",
+        "markAllRead",
+        "NotificationBell",
+        "handler",
+        "handleOpen"
+      ]
+    },
+    {
+      "path": "student-dash-test.png",
+      "language": null
+    },
+    {
+      "path": "students-admin-page.png",
+      "language": null
+    },
+    {
+      "path": "test_integration.py",
+      "language": "python"
+    },
+    {
+      "path": "test_setup.py",
+      "language": "python"
+    },
+    {
+      "path": "tests/questionBank.test.mjs",
+      "language": null
+    },
+    {
+      "path": "tests/test_schema.py",
+      "language": "python"
+    },
+    {
+      "path": "utils/__init__.py",
+      "language": "python"
+    },
+    {
+      "path": "utils/ai_helpers.py",
+      "language": "python"
+    },
+    {
+      "path": "utils/emailer.py",
+      "language": "python"
+    },
+    {
+      "path": "utils/schema.py",
+      "language": "python"
+    },
+    {
+      "path": "utils/scraper.py",
+      "language": "python"
+    },
+    {
+      "path": "utils/storage.py",
+      "language": "python"
+    },
+    {
+      "path": "vercel.json",
+      "language": "json"
+    },
+    {
+      "path": "vite.config.js",
+      "language": "javascript",
+      "functions": []
+    },
+    {
+      "path": "vite.config.js.timestamp-1779212291619-d98f740c8dd35.mjs",
+      "language": null
+    },
+    {
+      "path": "wsgi.py",
+      "language": "python"
+    }
+  ]
+}

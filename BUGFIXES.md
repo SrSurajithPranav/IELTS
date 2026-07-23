@@ -1,11 +1,16 @@
 # IELTS Platform — Bug Fix Summary
 
-All 21 bugs identified in the audit have been patched.  
+All 21 bugs identified in the audit have been resolved.  
 **Run `python migrate_db.py` once after deploying** to add the new DB columns.
 
 ---
 
 ## 🔴 Critical (data / permissions)
+## 🟢 New Features
+| # | Feature | File(s) |
+|---|-----|---------|
+| 1 | Dark Mode | `src/App.jsx` |
+
 
 | # | Bug | File(s) |
 |---|-----|---------|
@@ -17,6 +22,11 @@ All 21 bugs identified in the audit have been patched.
 
 ---
 
+
+## 🟡 Medium (UX / misleading behaviour)
+| # | Bug | File(s) |
+|---|-----|---------|
+| 13 | Vocabulary page crashed with `alert()` on 500 error | `src/pages/VocabularyPage.jsx` |
 ## 🟠 High-priority (broken features)
 
 | # | Bug | File(s) |
@@ -72,3 +82,11 @@ Adds: `users.teacher_id`, `users.*_band` (×4), `submissions.band_score`, makes 
 | `POST` | `/api/submissions/review/<id>` | Teacher / Admin | Submit `feedback_text` + optional `band_score` (0–9) |
 
 Frontend: `submissionReviewAPI.review(submissionId, feedbackText, bandScore)` in `src/services/api.js`.
+
+## Summary
+| Type | Count | Fixed | Remaining |
+|------|-------|-------|-----------|
+| Login Issues | 1 | 1 | 0 |
+| Hardcoded Values | 4 | 0 | 4 |
+| Permission/Role Bugs | 4 | 0 | 4 |
+| **TOTAL** | **9** | **1** | **8** |
